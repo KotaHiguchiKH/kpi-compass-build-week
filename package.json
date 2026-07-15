@@ -1,0 +1,13 @@
+{
+  "name": "ai-automation-biz",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "demo": "node demo/report.mjs",
+    "start": "node server.mjs",
+    "test": "node --test demo/report.test.mjs web/app.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
