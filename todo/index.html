@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Todo — やることは AI が書き、私は消すだけ</title>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #77716a;
+    --line: #e5e2dc;
+    --accent: #2f6f4f;
+    --accent-ink: #ffffff;
+    --danger: #b3402f;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181a;
+      --card: #1f2224;
+      --ink: #eceae6;
+      --muted: #9a958e;
+      --line: #33373a;
+      --accent: #58b98c;
+      --accent-ink: #10231a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 80px; }
+
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  h1 { font-size: 1.3rem; margin: 0; letter-spacing: .01em; }
+  .count { color: var(--muted); font-size: .9rem; }
+  .sub { color: var(--muted); font-size: .82rem; margin: 0 0 20px; }
+
+  .toolbar { display: flex; gap: 8px; margin-left: auto; }
+  .iconbtn {
+    background: none; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 8px; padding: 4px 10px; font-size: .85rem; cursor: pointer;
+  }
+  .iconbtn:hover { color: var(--ink); border-color: var(--muted); }
+
+  .addrow { display: flex; gap: 8px; margin-bottom: 16px; }
+  .addrow input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--card); color: var(--ink); font-size: .95rem; outline: none;
+  }
+  .addrow input:focus { border-color: var(--accent); }
+  .addrow button {
+    padding: 10px 18px; border: none; border-radius: 10px; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); font-size: .95rem; font-weight: 600;
+  }
+  .addrow button:disabled { opacity: .5; cursor: default; }
+
+  ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li.item {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 14px; box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: opacity .45s ease, transform .45s ease, max-height .35s ease .25s,
+                padding .35s ease .25s, margin .35s ease .25s, border-width .35s ease .25s;
+    max-height: 200px;
+  }
+  li.item.done {
+    opacity: 0; transform: translateX(28px) scale(.97);
+    max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -8px; border-width: 0;
+  }
+  li.item.done .title { text-decoration: line-through; }
+
+  .check {
+    flex: none; width: 24px; height: 24px; margin-top: 2px;
+    border: 2px solid var(--muted); border-radius: 50%;
+    background: none; cursor: pointer; position: relative;
+    transition: border-color .15s, background .15s, transform .1s;
+  }
+  .check:hover { border-color: var(--accent); transform: scale(1.08); }
+  .check.on { background: var(--accent); border-color: var(--accent); }
+  .check.on::after {
+    content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px;
+    border: solid var(--accent-ink); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+  }
+
+  .body { flex: 1; min-width: 0; }
+  .title { font-size: .98rem; overflow-wrap: anywhere; }
+  .meta { font-size: .76rem; color: var(--muted); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .meta a { color: var(--muted); }
+
+  .empty {
+    text-align: center; color: var(--muted); padding: 56px 12px; font-size: .95rem;
+    border: 1px dashed var(--line); border-radius: 12px;
+  }
+  .empty .big { font-size: 2rem; display: block; margin-bottom: 8px; }
+
+  .status { font-size: .78rem; color: var(--muted); margin-top: 14px; min-height: 1.2em; }
+  .status.err { color: var(--danger); }
+
+  dialog#settings {
+    border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink);
+    max-width: 460px; width: calc(100% - 32px); padding: 20px; box-shadow: var(--shadow);
+  }
+  dialog#settings::backdrop { background: rgba(0,0,0,.35); }
+  dialog h2 { margin: 0 0 12px; font-size: 1.05rem; }
+  dialog label { display: block; font-size: .82rem; color: var(--muted); margin: 12px 0 4px; }
+  dialog input[type=text], dialog input[type=password] {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font-size: .9rem;
+  }
+  dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+  dialog .hint { font-size: .76rem; color: var(--muted); margin-top: 6px; }
+  dialog .hint a { color: var(--accent); }
+  .togglerow { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: .88rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>AI Todo</h1>
+    <span class="count" id="count"></span>
+    <div class="toolbar">
+      <button class="iconbtn" id="refreshBtn" title="再読み込み">↻ 更新</button>
+      <button class="iconbtn" id="settingsBtn" title="設定">⚙ 設定</button>
+    </div>
+  </header>
+  <p class="sub">AI との作業で発生した「あなたのやること」。チェックすると消えます。</p>
+
+  <div class="addrow">
+    <input id="addInput" type="text" placeholder="手動で追加(Enter)" autocomplete="off">
+    <button id="addBtn">追加</button>
+  </div>
+
+  <ul class="list" id="list"></ul>
+  <div class="empty" id="empty" hidden>
+    <span class="big">🎉</span>
+    全部完了。いま、あなたはボトルネックではありません。
+  </div>
+  <div class="status" id="status"></div>
+</div>
+
+<dialog id="settings">
+  <h2>設定</h2>
+  <label>GitHub リポジトリ (owner/repo)</label>
+  <input type="text" id="cfgRepo" placeholder="KotaHiguchiKH/kpi-compass-build-week">
+  <label>ラベル</label>
+  <input type="text" id="cfgLabel" placeholder="ai-todo">
+  <label>GitHub トークン(チェックで消す・追加に必要)</label>
+  <input type="password" id="cfgToken" placeholder="github_pat_...">
+  <div class="hint">
+    Fine-grained PAT を
+    <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">こちら</a>
+    で作成 → 対象リポジトリを選び、Repository permissions の <b>Issues: Read and write</b> だけ付与。
+    トークンはこのブラウザの localStorage にのみ保存されます。
+  </div>
+  <div class="togglerow">
+    <input type="checkbox" id="cfgSound" checked> <label for="cfgSound" style="margin:0">完了音を鳴らす</label>
+  </div>
+  <div class="togglerow">
+    <input type="checkbox" id="cfgOldestFirst" checked> <label for="cfgOldestFirst" style="margin:0">古い順(キュー表示)</label>
+  </div>
+  <div class="row">
+    <button class="iconbtn" id="cfgCancel">閉じる</button>
+    <button class="iconbtn" id="cfgSave" style="background:var(--accent);color:var(--accent-ink);border-color:var(--accent)">保存</button>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+
+const DEFAULTS = { repo: "KotaHiguchiKH/kpi-compass-build-week", label: "ai-todo", sound: true, oldestFirst: true };
+const LS_KEY = "ai-todo-config-v1";
+
+function loadCfg() {
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(LS_KEY) || "{}") }; }
+  catch { return { ...DEFAULTS }; }
+}
+function saveCfg(cfg) { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); }
+let cfg = loadCfg();
+
+const $ = (id) => document.getElementById(id);
+const listEl = $("list"), emptyEl = $("empty"), statusEl = $("status"), countEl = $("count");
+
+// ---------- GitHub API ----------
+function apiHeaders(write) {
+  const h = { "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+  if (cfg.token) h["Authorization"] = "Bearer " + cfg.token;
+  else if (write) throw new Error("トークン未設定です。⚙ 設定から GitHub トークンを保存してください。");
+  return h;
+}
+function apiBase() { return "https://api.github.com/repos/" + cfg.repo; }
+
+async function fetchTodos() {
+  const url = apiBase() + "/issues?state=open&per_page=100&labels=" + encodeURIComponent(cfg.label)
+    + "&sort=created&direction=" + (cfg.oldestFirst ? "asc" : "desc");
+  const res = await fetch(url, { headers: apiHeaders(false) });
+  if (!res.ok) throw new Error("読み込み失敗 (" + res.status + "): " + (res.status === 403 ? "APIレート制限の可能性。トークンを設定すると解消します。" : await res.text().catch(() => "")));
+  const issues = await res.json();
+  return issues.filter(i => !i.pull_request);
+}
+
+async function closeIssue(number) {
+  const res = await fetch(apiBase() + "/issues/" + number, {
+    method: "PATCH",
+    headers: { ...apiHeaders(true), "Content-Type": "application/json" },
+    body: JSON.stringify({ state: "closed", state_reason: "completed" })
+  });
+  if (!res.ok) throw new Error("完了の反映に失敗 (" + res.status + ")。トークンの権限 (Issues: Read and write) を確認してください。");
+}
+
+async function createIssue(title) {
+  const res = await fetch(apiBase() + "/issues", {
+    method: "POST",
+    headers: { ...apiHeaders(true), "Content-Type": "application/json" },
+    body: JSON.stringify({ title, labels: [cfg.label], body: "_source: 手動追加 (AI Todo アプリ)_" })
+  });
+  if (!res.ok) throw new Error("追加に失敗 (" + res.status + ")。トークンの権限を確認してください。");
+  return res.json();
+}
+
+// ---------- 完了音 (WebAudio・外部ファイル不要) ----------
+let audioCtx = null;
+function playDoneSound() {
+  if (!cfg.sound) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const t0 = audioCtx.currentTime;
+    // 柔らかい「ポン」
+    const thump = audioCtx.createOscillator(), tg = audioCtx.createGain();
+    thump.type = "sine";
+    thump.frequency.setValueAtTime(320, t0);
+    thump.frequency.exponentialRampToValueAtTime(160, t0 + 0.12);
+    tg.gain.setValueAtTime(0.25, t0);
+    tg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
+    thump.connect(tg).connect(audioCtx.destination);
+    thump.start(t0); thump.stop(t0 + 0.18);
+    // きらっとした上昇アルペジオ (E6 → G#6 → B6)
+    [[1318.5, 0.00], [1661.2, 0.07], [1975.5, 0.14]].forEach(([f, dt]) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "triangle"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.18, t0 + dt + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + dt + 0.5);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.55);
+    });
+  } catch { /* 音は失敗しても本体機能に影響なし */ }
+}
+
+// ---------- 表示 ----------
+function relTime(iso) {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 3600) return Math.max(1, Math.floor(s / 60)) + "分前";
+  if (s < 86400) return Math.floor(s / 3600) + "時間前";
+  return Math.floor(s / 86400) + "日前";
+}
+function sourceOf(issue) {
+  const m = /_source:\s*(.+?)_/.exec(issue.body || "");
+  return m ? m[1].trim() : null;
+}
+
+function render(issues) {
+  listEl.textContent = "";
+  for (const issue of issues) {
+    const li = document.createElement("li");
+    li.className = "item";
+    const btn = document.createElement("button");
+    btn.className = "check";
+    btn.title = "完了にする";
+    btn.addEventListener("click", () => complete(li, btn, issue));
+    const body = document.createElement("div");
+    body.className = "body";
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = issue.title;
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const time = document.createElement("span");
+    time.textContent = relTime(issue.created_at);
+    meta.append(time);
+    const src = sourceOf(issue);
+    if (src) { const s = document.createElement("span"); s.textContent = "📌 " + src; meta.append(s); }
+    const link = document.createElement("a");
+    link.href = issue.html_url; link.target = "_blank"; link.rel = "noopener"; link.textContent = "#" + issue.number;
+    meta.append(link);
+    body.append(title, meta);
+    li.append(btn, body);
+    listEl.append(li);
+  }
+  emptyEl.hidden = issues.length > 0;
+  countEl.textContent = issues.length ? "残り " + issues.length + " 件" : "";
+}
+
+async function complete(li, btn, issue) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.classList.add("on");
+  playDoneSound();
+  li.classList.add("done");
+  try {
+    await closeIssue(issue.number);
+    setTimeout(() => { li.remove(); updateCount(); }, 700);
+    setStatus("✔ 完了: " + issue.title);
+  } catch (e) {
+    li.classList.remove("done");
+    btn.classList.remove("on");
+    btn.disabled = false;
+    setStatus(e.message, true);
+  }
+}
+function updateCount() {
+  const n = listEl.querySelectorAll("li:not(.done)").length;
+  countEl.textContent = n ? "残り " + n + " 件" : "";
+  emptyEl.hidden = n > 0;
+}
+
+function setStatus(msg, isErr) {
+  statusEl.textContent = msg || "";
+  statusEl.className = "status" + (isErr ? " err" : "");
+}
+
+let refreshing = false;
+async function refresh() {
+  if (refreshing) return;
+  refreshing = true;
+  setStatus("読み込み中…");
+  try {
+    render(await fetchTodos());
+    setStatus("");
+  } catch (e) {
+    setStatus(e.message, true);
+  } finally {
+    refreshing = false;
+  }
+}
+
+// ---------- 追加 ----------
+async function addTodo() {
+  const input = $("addInput");
+  const title = input.value.trim();
+  if (!title) return;
+  $("addBtn").disabled = true;
+  try {
+    await createIssue(title);
+    input.value = "";
+    await refresh();
+    setStatus("追加しました: " + title);
+  } catch (e) {
+    setStatus(e.message, true);
+  } finally {
+    $("addBtn").disabled = false;
+  }
+}
+$("addBtn").addEventListener("click", addTodo);
+$("addInput").addEventListener("keydown", (e) => { if (e.key === "Enter") addTodo(); });
+
+// ---------- 設定 ----------
+const dlg = $("settings");
+$("settingsBtn").addEventListener("click", () => {
+  $("cfgRepo").value = cfg.repo;
+  $("cfgLabel").value = cfg.label;
+  $("cfgToken").value = cfg.token || "";
+  $("cfgSound").checked = cfg.sound;
+  $("cfgOldestFirst").checked = cfg.oldestFirst;
+  dlg.showModal();
+});
+$("cfgCancel").addEventListener("click", () => dlg.close());
+$("cfgSave").addEventListener("click", () => {
+  cfg = {
+    repo: $("cfgRepo").value.trim() || DEFAULTS.repo,
+    label: $("cfgLabel").value.trim() || DEFAULTS.label,
+    token: $("cfgToken").value.trim() || undefined,
+    sound: $("cfgSound").checked,
+    oldestFirst: $("cfgOldestFirst").checked
+  };
+  saveCfg(cfg);
+  dlg.close();
+  refresh();
+});
+
+$("refreshBtn").addEventListener("click", refresh);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+setInterval(() => { if (!document.hidden) refresh(); }, 60000);
+refresh();
+</script>
+</body>
+</html>
