@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "demo": "node demo/report.mjs",
+    "todo": "node todo/serve.mjs",
     "start": "node server.mjs",
     "test": "node --test demo/report.test.mjs web/app.test.mjs"
   },
