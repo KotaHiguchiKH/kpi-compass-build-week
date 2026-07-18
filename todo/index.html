@@ -204,7 +204,18 @@ async function fetchTodos() {
   const res = await fetch(url, { headers: apiHeaders(false) });
   if (!res.ok) throw new Error("読み込み失敗 (" + res.status + "): " + (res.status === 403 ? "APIレート制限の可能性。トークンを設定すると解消します。" : await res.text().catch(() => "")));
   const issues = await res.json();
-  return issues.filter(i => !i.pull_request);
+  const todos = issues.filter(i => !i.pull_request);
+  // Some GitHub integrations can create an Issue but cannot attach labels.
+  // Keep the label as the primary contract, then recover marked action items
+  // so the app remains usable while the repository label is repaired.
+  const fallbackUrl = apiBase() + "/issues?state=open&per_page=100&sort=created&direction="
+    + (cfg.oldestFirst ? "asc" : "desc");
+  const fallbackRes = await fetch(fallbackUrl, { headers: apiHeaders(false) });
+  if (!fallbackRes.ok) return todos;
+  const fallbackIssues = await fallbackRes.json();
+  return fallbackIssues.filter(i => !i.pull_request && (
+    (i.labels || []).some(label => label.name === cfg.label) || /_source:\s*.+?_/.test(i.body || "")
+  ));
 }
 
 async function closeIssue(number) {
