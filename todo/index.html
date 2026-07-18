@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2f6f4f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>AI Todo — やることは AI が書き、私は消すだけ</title>
 <style>
   :root {
@@ -12,8 +16,10 @@
     --muted: #77716a;
     --line: #e5e2dc;
     --accent: #2f6f4f;
+    --accent-soft: #e7f1ec;
     --accent-ink: #ffffff;
     --danger: #b3402f;
+    --code-bg: #f0efeb;
     --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
   }
   @media (prefers-color-scheme: dark) {
@@ -24,7 +30,9 @@
       --muted: #9a958e;
       --line: #33373a;
       --accent: #58b98c;
+      --accent-soft: #23352c;
       --accent-ink: #10231a;
+      --code-bg: #17191b;
       --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
     }
   }
@@ -34,15 +42,14 @@
     background: var(--bg);
     color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
-    line-height: 1.5;
+    line-height: 1.55;
   }
-  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 80px; }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 24px 16px 90px; }
 
   header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
   h1 { font-size: 1.3rem; margin: 0; letter-spacing: .01em; }
   .count { color: var(--muted); font-size: .9rem; }
   .sub { color: var(--muted); font-size: .82rem; margin: 0 0 20px; }
-
   .toolbar { display: flex; gap: 8px; margin-left: auto; }
   .iconbtn {
     background: none; border: 1px solid var(--line); color: var(--muted);
@@ -62,24 +69,25 @@
   }
   .addrow button:disabled { opacity: .5; cursor: default; }
 
-  ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   li.item {
-    display: flex; align-items: flex-start; gap: 12px;
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 12px 14px; box-shadow: var(--shadow);
-    overflow: hidden;
-    transition: opacity .45s ease, transform .45s ease, max-height .35s ease .25s,
-                padding .35s ease .25s, margin .35s ease .25s, border-width .35s ease .25s;
-    max-height: 200px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); overflow: hidden;
+    transition: opacity .45s ease, transform .45s ease, max-height .4s ease .25s,
+                margin .35s ease .25s, border-width .35s ease .25s;
+    max-height: 3000px;
   }
-  li.item.done {
+  li.item.gone {
     opacity: 0; transform: translateX(28px) scale(.97);
-    max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -8px; border-width: 0;
+    max-height: 0; margin-top: -10px; border-width: 0;
   }
-  li.item.done .title { text-decoration: line-through; }
+  li.item.next { border-color: var(--accent); }
+
+  .head { display: flex; align-items: flex-start; gap: 12px; padding: 13px 14px; cursor: pointer; user-select: none; }
+  .head:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
 
   .check {
-    flex: none; width: 24px; height: 24px; margin-top: 2px;
+    flex: none; width: 26px; height: 26px; margin-top: 1px;
     border: 2px solid var(--muted); border-radius: 50%;
     background: none; cursor: pointer; position: relative;
     transition: border-color .15s, background .15s, transform .1s;
@@ -87,14 +95,93 @@
   .check:hover { border-color: var(--accent); transform: scale(1.08); }
   .check.on { background: var(--accent); border-color: var(--accent); }
   .check.on::after {
-    content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px;
+    content: ""; position: absolute; left: 7px; top: 3px; width: 5px; height: 10px;
     border: solid var(--accent-ink); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
   }
+  .check.pulse { animation: pulse 1.2s ease infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 50% { box-shadow: 0 0 0 7px transparent; } }
 
-  .body { flex: 1; min-width: 0; }
-  .title { font-size: .98rem; overflow-wrap: anywhere; }
-  .meta { font-size: .76rem; color: var(--muted); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .hbody { flex: 1; min-width: 0; }
+  .title { font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
+  li.item.gone .title { text-decoration: line-through; }
+  .meta { font-size: .76rem; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .meta a { color: var(--muted); }
+  .chip {
+    background: var(--accent-soft); color: var(--accent); border-radius: 20px;
+    padding: 1px 9px; font-weight: 600;
+  }
+  .nextchip { background: var(--accent); color: var(--accent-ink); }
+  .caret { flex: none; color: var(--muted); font-size: .8rem; margin-top: 6px; transition: transform .2s; }
+  .open .caret { transform: rotate(90deg); }
+
+  .detail { display: none; padding: 2px 16px 16px 52px; }
+  .open .detail { display: block; }
+
+  .step { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; }
+  .stepcheck {
+    flex: none; width: 20px; height: 20px; margin-top: 2px;
+    border: 2px solid var(--muted); border-radius: 6px;
+    background: none; cursor: pointer; position: relative;
+    transition: border-color .15s, background .15s;
+  }
+  .stepcheck:hover { border-color: var(--accent); }
+  .stepcheck.on { background: var(--accent); border-color: var(--accent); }
+  .stepcheck.on::after {
+    content: ""; position: absolute; left: 5px; top: 1px; width: 4px; height: 9px;
+    border: solid var(--accent-ink); border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .steptext { font-size: .92rem; overflow-wrap: anywhere; }
+  .step.done .steptext { color: var(--muted); text-decoration: line-through; }
+  .steptext a, .p a { color: var(--accent); font-weight: 600; }
+  .steptext code, .p code {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 5px;
+    padding: 0 5px; font-size: .86em; font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+
+  .p { font-size: .9rem; margin: 8px 0; overflow-wrap: anywhere; }
+  .p.mutedline { color: var(--muted); }
+  ul.plain { margin: 4px 0; padding-left: 20px; font-size: .9rem; }
+
+  .codeblock { position: relative; margin: 8px 0; }
+  .codeblock pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 12px 12px; padding-top: 34px; margin: 0; overflow-x: auto;
+    font-size: .82rem; font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    white-space: pre; line-height: 1.45;
+  }
+  .codebar {
+    position: absolute; top: 6px; left: 10px; right: 8px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .codelang { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .copybtn {
+    border: none; border-radius: 7px; padding: 3px 12px; font-size: .78rem; font-weight: 600;
+    background: var(--accent); color: var(--accent-ink); cursor: pointer;
+  }
+  .copybtn.copied { background: var(--accent-soft); color: var(--accent); }
+
+  .holdbtn {
+    flex: none; background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: .95rem; margin-top: 3px; padding: 2px 6px; border-radius: 6px;
+  }
+  .holdbtn:hover { color: var(--accent); background: var(--accent-soft); }
+  .holdsec { margin-top: 22px; }
+  .holdtoggle {
+    width: 100%; text-align: left; background: none; border: none; color: var(--muted);
+    font-size: .85rem; cursor: pointer; padding: 6px 2px;
+  }
+  ul.holdlist { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .holditem {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px dashed var(--line); border-radius: 10px; padding: 8px 12px; color: var(--muted);
+  }
+  .holditem .t { flex: 1; font-size: .9rem; overflow-wrap: anywhere; }
+  .holditem a { color: var(--muted); font-size: .8rem; }
+  .resumebtn {
+    border: 1px solid var(--line); background: none; color: var(--muted);
+    border-radius: 7px; padding: 3px 10px; font-size: .8rem; cursor: pointer; white-space: nowrap;
+  }
+  .resumebtn:hover { color: var(--accent); border-color: var(--accent); }
 
   .empty {
     text-align: center; color: var(--muted); padding: 56px 12px; font-size: .95rem;
@@ -103,7 +190,7 @@
   .empty .big { font-size: 2rem; display: block; margin-bottom: 8px; }
 
   .status { font-size: .78rem; color: var(--muted); margin-top: 14px; min-height: 1.2em; }
-  .status.err { color: var(--danger); }
+  .status.err { color: var(--danger); font-weight: 600; }
 
   dialog#settings {
     border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink);
@@ -132,7 +219,7 @@
       <button class="iconbtn" id="settingsBtn" title="設定">⚙ 設定</button>
     </div>
   </header>
-  <p class="sub">AI との作業で発生した「あなたのやること」。チェックすると消えます。</p>
+  <p class="sub">AI との作業で発生した「あなたのやること」。上から順に、手順どおりに消すだけ。</p>
 
   <div class="addrow">
     <input id="addInput" type="text" placeholder="手動で追加(Enter)" autocomplete="off">
@@ -143,6 +230,10 @@
   <div class="empty" id="empty" hidden>
     <span class="big">🎉</span>
     全部完了。いま、あなたはボトルネックではありません。
+  </div>
+  <div class="holdsec" id="holdsec" hidden>
+    <button class="holdtoggle" id="holdToggle">▸ ⏸ 保留中 <span id="holdCount"></span></button>
+    <ul class="holdlist" id="holdlist" hidden></ul>
   </div>
   <div class="status" id="status"></div>
 </div>
@@ -188,6 +279,16 @@ let cfg = loadCfg();
 
 const $ = (id) => document.getElementById(id);
 const listEl = $("list"), emptyEl = $("empty"), statusEl = $("status"), countEl = $("count");
+let issues = [];                 // 本流に表示中の issue 一覧(メモリ上の状態)
+let held = [];                   // 保留中の issue 一覧
+const HOLD_LABEL = "ai-todo-hold";
+const expanded = new Set();      // 開いているカードの issue number
+let autoExpandDone = false;
+let holdOpen = false;
+
+function isHeld(issue) {
+  return (issue.labels || []).some((l) => (typeof l === "string" ? l : l.name) === HOLD_LABEL);
+}
 
 // ---------- GitHub API ----------
 function apiHeaders(write) {
@@ -202,29 +303,46 @@ async function fetchTodos() {
   const url = apiBase() + "/issues?state=open&per_page=100&labels=" + encodeURIComponent(cfg.label)
     + "&sort=created&direction=" + (cfg.oldestFirst ? "asc" : "desc");
   const res = await fetch(url, { headers: apiHeaders(false) });
-  if (!res.ok) throw new Error("読み込み失敗 (" + res.status + "): " + (res.status === 403 ? "APIレート制限の可能性。トークンを設定すると解消します。" : await res.text().catch(() => "")));
-  const issues = await res.json();
-  const todos = issues.filter(i => !i.pull_request);
-  // Some GitHub integrations can create an Issue but cannot attach labels.
-  // Keep the label as the primary contract, then recover marked action items
-  // so the app remains usable while the repository label is repaired.
+  if (!res.ok) throw new Error("読み込み失敗 (" + res.status + "): " + (res.status === 403 ? "APIレート制限の可能性。トークンを設定すると解消します。" : ""));
+  const labeled = (await res.json()).filter(i => !i.pull_request);
+
+  // GitHub連携によってはIssue作成はできてもラベル付与だけ失敗する。
+  // ラベル付き取得を主経路にしつつ、_sourceマーカー付きの未完了Issueを救済する。
   const fallbackUrl = apiBase() + "/issues?state=open&per_page=100&sort=created&direction="
     + (cfg.oldestFirst ? "asc" : "desc");
   const fallbackRes = await fetch(fallbackUrl, { headers: apiHeaders(false) });
-  if (!fallbackRes.ok) return todos;
-  const fallbackIssues = await fallbackRes.json();
-  return fallbackIssues.filter(i => !i.pull_request && (
-    (i.labels || []).some(label => label.name === cfg.label) || /_source:\s*.+?_/.test(i.body || "")
+  if (!fallbackRes.ok) return labeled;
+  return (await fallbackRes.json()).filter(i => !i.pull_request && (
+    (i.labels || []).some(label => (typeof label === "string" ? label : label.name) === cfg.label)
+    || /_source:\s*.+?_/.test(i.body || "")
   ));
 }
 
-async function closeIssue(number) {
+async function patchIssue(number, payload) {
   const res = await fetch(apiBase() + "/issues/" + number, {
     method: "PATCH",
     headers: { ...apiHeaders(true), "Content-Type": "application/json" },
-    body: JSON.stringify({ state: "closed", state_reason: "completed" })
+    body: JSON.stringify(payload)
   });
-  if (!res.ok) throw new Error("完了の反映に失敗 (" + res.status + ")。トークンの権限 (Issues: Read and write) を確認してください。");
+  if (!res.ok) throw new Error("反映に失敗 (" + res.status + ")。トークンの権限 (Issues: Read and write) を確認してください。");
+  return res.json();
+}
+
+async function addLabel(number, label) {
+  const res = await fetch(apiBase() + "/issues/" + number + "/labels", {
+    method: "POST",
+    headers: { ...apiHeaders(true), "Content-Type": "application/json" },
+    body: JSON.stringify({ labels: [label] })
+  });
+  if (!res.ok) throw new Error("保留の反映に失敗 (" + res.status + ")。トークンの権限を確認してください。");
+}
+
+async function removeLabel(number, label) {
+  const res = await fetch(apiBase() + "/issues/" + number + "/labels/" + encodeURIComponent(label), {
+    method: "DELETE",
+    headers: apiHeaders(true)
+  });
+  if (!res.ok && res.status !== 404) throw new Error("保留解除に失敗 (" + res.status + ")。トークンの権限を確認してください。");
 }
 
 async function createIssue(title) {
@@ -237,35 +355,136 @@ async function createIssue(title) {
   return res.json();
 }
 
-// ---------- 完了音 (WebAudio・外部ファイル不要) ----------
+// ---------- 効果音 (WebAudio・外部ファイル不要) ----------
 let audioCtx = null;
-function playDoneSound() {
+function ctx() {
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+function note(a, t, f, { dur = 0.5, g = 0.2, type = "triangle", attack = 0.012, glideTo = null } = {}) {
+  const o = a.createOscillator(), gn = a.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f, t);
+  if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, t + dur * 0.8);
+  gn.gain.setValueAtTime(0.0001, t);
+  gn.gain.exponentialRampToValueAtTime(g, t + attack);
+  gn.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(gn).connect(a.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function playDoneSound() {  // タスク完了: 「おめでとう」— 低音の芯 + 上昇2音 + 長調の余韻 + きらめき
   if (!cfg.sound) return;
   try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    const t0 = audioCtx.currentTime;
-    // 柔らかい「ポン」
-    const thump = audioCtx.createOscillator(), tg = audioCtx.createGain();
-    thump.type = "sine";
-    thump.frequency.setValueAtTime(320, t0);
-    thump.frequency.exponentialRampToValueAtTime(160, t0 + 0.12);
-    tg.gain.setValueAtTime(0.25, t0);
-    tg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
-    thump.connect(tg).connect(audioCtx.destination);
-    thump.start(t0); thump.stop(t0 + 0.18);
-    // きらっとした上昇アルペジオ (E6 → G#6 → B6)
-    [[1318.5, 0.00], [1661.2, 0.07], [1975.5, 0.14]].forEach(([f, dt]) => {
-      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.type = "triangle"; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, t0 + dt);
-      g.gain.exponentialRampToValueAtTime(0.18, t0 + dt + 0.015);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + dt + 0.5);
-      o.connect(g).connect(audioCtx.destination);
-      o.start(t0 + dt); o.stop(t0 + dt + 0.55);
-    });
+    const a = ctx(), t0 = a.currentTime;
+    note(a, t0, 240, { type: "sine", glideTo: 120, dur: 0.16, g: 0.22, attack: 0.004 });   // 芯のある「ポン」
+    note(a, t0, 987.77, { dur: 0.4, g: 0.2 });                                             // B5
+    note(a, t0 + 0.09, 1318.5, { dur: 0.55, g: 0.24 });                                    // E6(上昇で達成感)
+    [659.26, 830.61, 987.77, 1318.5].forEach((f) =>                                        // E長調コードの余韻
+      note(a, t0 + 0.18, f, { type: "sine", dur: 0.9, g: 0.065, attack: 0.03 }));
+    note(a, t0 + 0.26, 1975.5, { dur: 0.5, g: 0.06 });                                     // きらめき B6
+    note(a, t0 + 0.34, 2637.0, { dur: 0.6, g: 0.05 });                                     // きらめき E7
   } catch { /* 音は失敗しても本体機能に影響なし */ }
 }
+function playTickSound() {  // 子ステップ完了: 明るい2音の「タ・ディン」(親より控えめ)
+  if (!cfg.sound) return;
+  try {
+    const a = ctx(), t0 = a.currentTime;
+    note(a, t0, 500, { type: "sine", glideTo: 300, dur: 0.05, g: 0.1, attack: 0.003 });
+    note(a, t0, 880, { dur: 0.16, g: 0.14 });          // A5
+    note(a, t0 + 0.055, 1318.5, { dur: 0.28, g: 0.16 }); // E6
+  } catch {}
+}
+
+// ---------- issue 本文のパース(レシピ形式) ----------
+// 対応: - [ ] 手順 / ``` コード ``` / 箇条書き / 段落 / _source:_ / _session:_
+function parseBody(body) {
+  const lines = (body || "").split(/\r?\n/);
+  const blocks = [];  // {type:"step",text,checked,taskIndex} | {type:"code",lang,code} | {type:"bullet",text} | {type:"p",text}
+  let source = null, session = null;
+  let i = 0, taskIndex = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const fence = /^\s*```(.*)$/.exec(line);
+    if (fence) {
+      const lang = fence[1].trim();
+      const code = [];
+      i++;
+      while (i < lines.length && !/^\s*```\s*$/.test(lines[i])) { code.push(lines[i]); i++; }
+      i++;
+      blocks.push({ type: "code", lang, code: code.join("\n") });
+      continue;
+    }
+    let m;
+    if ((m = /^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/.exec(line))) {
+      blocks.push({ type: "step", checked: m[1] !== " ", text: m[2], taskIndex: taskIndex++ });
+    } else if ((m = /^_source:\s*(.+?)_\s*$/.exec(line))) {
+      source = m[1].trim();
+    } else if ((m = /^_session:\s*(.+?)_?\s*$/.exec(line))) {
+      session = m[1].trim().replace(/_$/, "");
+    } else if ((m = /^\s*[-*]\s+(.*)$/.exec(line))) {
+      blocks.push({ type: "bullet", text: m[1] });
+    } else if ((m = /^#{1,6}\s+(.*)$/.exec(line))) {
+      blocks.push({ type: "p", text: "**" + m[1] + "**" });
+    } else if (line.trim() !== "") {
+      blocks.push({ type: "p", text: line });
+    }
+    i++;
+  }
+  return { blocks, source, session };
+}
+
+// 本文中の n 番目のチェックボックスを付け外しした新しい本文を返す
+function toggleTaskInBody(body, index, checked) {
+  let n = -1;
+  return body.replace(/^(\s*[-*]\s+\[)( |x|X)(\])/gm, (m, pre, cur, post) => {
+    n++;
+    return n === index ? pre + (checked ? "x" : " ") + post : m;
+  });
+}
+
+// ---------- インライン整形: [t](url), 生URL, `code`, **bold** ----------
+function renderInline(text) {
+  const frag = document.createDocumentFragment();
+  const re = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>")\]]+)|`([^`]+)`|\*\*([^*]+)\*\*/g;
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) frag.append(text.slice(last, m.index));
+    if (m[1] !== undefined) {
+      const a = document.createElement("a");
+      a.href = m[2]; a.target = "_blank"; a.rel = "noopener"; a.textContent = m[1] + " ↗";
+      frag.append(a);
+    } else if (m[3] !== undefined) {
+      const a = document.createElement("a");
+      a.href = m[3]; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = (m[3].length > 52 ? m[3].slice(0, 49) + "…" : m[3]) + " ↗";
+      frag.append(a);
+    } else if (m[4] !== undefined) {
+      const c = document.createElement("code"); c.textContent = m[4]; frag.append(c);
+    } else if (m[5] !== undefined) {
+      const b = document.createElement("b"); b.textContent = m[5]; frag.append(b);
+    }
+    last = re.lastIndex;
+  }
+  if (last < text.length) frag.append(text.slice(last));
+  return frag;
+}
+
+// ---------- コピー ----------
+async function copyText(text, btn) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+    else {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove();
+    }
+    btn.textContent = "✔ コピーした"; btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = "コピー"; btn.classList.remove("copied"); }, 1600);
+  } catch { setStatus("コピーに失敗しました。手動で選択してください。", true); }
+}
+
+const LANG_LABEL = { prompt: "AIに貼るプロンプト", bash: "コマンド", powershell: "コマンド", sh: "コマンド", cmd: "コマンド", "": "コピーして使う" };
 
 // ---------- 表示 ----------
 function relTime(iso) {
@@ -274,65 +493,207 @@ function relTime(iso) {
   if (s < 86400) return Math.floor(s / 3600) + "時間前";
   return Math.floor(s / 86400) + "日前";
 }
-function sourceOf(issue) {
-  const m = /_source:\s*(.+?)_/.exec(issue.body || "");
-  return m ? m[1].trim() : null;
-}
 
-function render(issues) {
+function render() {
   listEl.textContent = "";
-  for (const issue of issues) {
-    const li = document.createElement("li");
-    li.className = "item";
-    const btn = document.createElement("button");
-    btn.className = "check";
-    btn.title = "完了にする";
-    btn.addEventListener("click", () => complete(li, btn, issue));
-    const body = document.createElement("div");
-    body.className = "body";
-    const title = document.createElement("div");
-    title.className = "title";
-    title.textContent = issue.title;
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    const time = document.createElement("span");
-    time.textContent = relTime(issue.created_at);
-    meta.append(time);
-    const src = sourceOf(issue);
-    if (src) { const s = document.createElement("span"); s.textContent = "📌 " + src; meta.append(s); }
-    const link = document.createElement("a");
-    link.href = issue.html_url; link.target = "_blank"; link.rel = "noopener"; link.textContent = "#" + issue.number;
-    meta.append(link);
-    body.append(title, meta);
-    li.append(btn, body);
-    listEl.append(li);
-  }
+  if (!autoExpandDone && issues.length) { expanded.add(issues[0].number); autoExpandDone = true; }
+  issues.forEach((issue, idx) => listEl.append(renderItem(issue, idx === 0)));
   emptyEl.hidden = issues.length > 0;
   countEl.textContent = issues.length ? "残り " + issues.length + " 件" : "";
+  renderHold();
 }
 
-async function complete(li, btn, issue) {
+function renderHold() {
+  const sec = $("holdsec"), ul = $("holdlist");
+  sec.hidden = held.length === 0;
+  $("holdCount").textContent = held.length ? held.length + " 件" : "";
+  $("holdToggle").firstChild.textContent = (holdOpen ? "▾" : "▸") + " ⏸ 保留中 ";
+  ul.hidden = !holdOpen;
+  ul.textContent = "";
+  for (const issue of held) {
+    const li = document.createElement("li");
+    li.className = "holditem";
+    const t = document.createElement("span");
+    t.className = "t";
+    t.textContent = issue.title;
+    const link = document.createElement("a");
+    link.href = issue.html_url; link.target = "_blank"; link.rel = "noopener"; link.textContent = "#" + issue.number;
+    const btn = document.createElement("button");
+    btn.className = "resumebtn"; btn.textContent = "▶ 戻す";
+    btn.addEventListener("click", () => resumeIssue(issue));
+    li.append(t, link, btn);
+    ul.append(li);
+  }
+}
+
+function renderItem(issue, isNext) {
+  const { blocks, source, session } = parseBody(issue.body);
+  const steps = blocks.filter(b => b.type === "step");
+  const doneSteps = steps.filter(s => s.checked).length;
+
+  const li = document.createElement("li");
+  li.className = "item" + (isNext ? " next" : "") + (expanded.has(issue.number) ? " open" : "");
+
+  // --- ヘッダ行 ---
+  const head = document.createElement("div");
+  head.className = "head";
+  const check = document.createElement("button");
+  check.className = "check" + (steps.length && doneSteps === steps.length ? " pulse" : "");
+  check.title = "タスク全体を完了にする";
+  check.addEventListener("click", (e) => { e.stopPropagation(); completeIssue(li, check, issue); });
+  const hbody = document.createElement("div");
+  hbody.className = "hbody";
+  const title = document.createElement("div");
+  title.className = "title";
+  title.textContent = issue.title;
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  if (isNext) { const c = document.createElement("span"); c.className = "chip nextchip"; c.textContent = "▶ 次はこれ"; meta.append(c); }
+  if (steps.length) { const c = document.createElement("span"); c.className = "chip"; c.textContent = doneSteps + "/" + steps.length + " 手順"; meta.append(c); }
+  const time = document.createElement("span"); time.textContent = relTime(issue.created_at); meta.append(time);
+  if (source) { const s = document.createElement("span"); s.textContent = "📌 " + source; meta.append(s); }
+  if (session && /^https?:\/\//.test(session)) {
+    const a = document.createElement("a"); a.href = session; a.target = "_blank"; a.rel = "noopener"; a.textContent = "元セッション ↗"; meta.append(a);
+  }
+  const link = document.createElement("a");
+  link.href = issue.html_url; link.target = "_blank"; link.rel = "noopener"; link.textContent = "#" + issue.number;
+  meta.append(link);
+  hbody.append(title, meta);
+  const holdBtn = document.createElement("button");
+  holdBtn.className = "holdbtn"; holdBtn.textContent = "⏸"; holdBtn.title = "保留にする(消さずに脇へ置く)";
+  holdBtn.addEventListener("click", (e) => { e.stopPropagation(); holdIssue(issue); });
+  const caret = document.createElement("span"); caret.className = "caret"; caret.textContent = "▶";
+  head.append(check, hbody, holdBtn, caret);
+  head.addEventListener("click", () => {
+    if (expanded.has(issue.number)) expanded.delete(issue.number); else expanded.add(issue.number);
+    li.classList.toggle("open");
+  });
+
+  // --- 詳細(レシピ) ---
+  const detail = document.createElement("div");
+  detail.className = "detail";
+  for (const b of blocks) {
+    if (b.type === "step") {
+      const row = document.createElement("div");
+      row.className = "step" + (b.checked ? " done" : "");
+      const sc = document.createElement("button");
+      sc.className = "stepcheck" + (b.checked ? " on" : "");
+      sc.addEventListener("click", (e) => { e.stopPropagation(); toggleStep(issue, b.taskIndex, !b.checked); });
+      const tx = document.createElement("div");
+      tx.className = "steptext";
+      tx.append(renderInline(b.text));
+      row.append(sc, tx);
+      detail.append(row);
+    } else if (b.type === "code") {
+      const wrapEl = document.createElement("div");
+      wrapEl.className = "codeblock";
+      const bar = document.createElement("div"); bar.className = "codebar";
+      const langEl = document.createElement("span"); langEl.className = "codelang";
+      langEl.textContent = LANG_LABEL[b.lang.toLowerCase()] ?? b.lang;
+      const btn = document.createElement("button");
+      btn.className = "copybtn"; btn.textContent = "コピー";
+      btn.addEventListener("click", (e) => { e.stopPropagation(); copyText(b.code, btn); });
+      bar.append(langEl, btn);
+      const pre = document.createElement("pre"); pre.textContent = b.code;
+      wrapEl.append(bar, pre);
+      detail.append(wrapEl);
+    } else if (b.type === "bullet") {
+      let ul = detail.lastElementChild;
+      if (!ul || ul.tagName !== "UL") { ul = document.createElement("ul"); ul.className = "plain"; detail.append(ul); }
+      const liEl = document.createElement("li"); liEl.append(renderInline(b.text)); ul.append(liEl);
+    } else {
+      const p = document.createElement("div"); p.className = "p"; p.append(renderInline(b.text));
+      detail.append(p);
+    }
+  }
+  li.append(head, detail);
+  return li;
+}
+
+// ---------- 操作 ----------
+// トークンがなければ、無音+設定画面を開いて理由を示す(黙って元に戻さない)
+function requireToken() {
+  if (cfg.token) return true;
+  setStatus("チェックを保存するには GitHub トークンが必要です。作り方はタスク「AI Todo を使える状態にする」(#1) の手順どおりでOK。", true);
+  openSettings();
+  return false;
+}
+
+async function toggleStep(issue, taskIndex, checked) {
+  if (!requireToken()) return;
+  const newBody = toggleTaskInBody(issue.body || "", taskIndex, checked);
+  const oldBody = issue.body;
+  issue.body = newBody;      // 楽観更新
+  if (checked) playTickSound();
+  render();
+  try {
+    await patchIssue(issue.number, { body: newBody });
+  } catch (e) {
+    issue.body = oldBody;
+    render();
+    setStatus(e.message, true);
+  }
+}
+
+async function completeIssue(li, btn, issue) {
+  if (!requireToken()) return;
   if (btn.disabled) return;
   btn.disabled = true;
   btn.classList.add("on");
   playDoneSound();
-  li.classList.add("done");
+  li.classList.add("gone");
   try {
-    await closeIssue(issue.number);
-    setTimeout(() => { li.remove(); updateCount(); }, 700);
+    await patchIssue(issue.number, { state: "closed", state_reason: "completed" });
+    issues = issues.filter(x => x.number !== issue.number);
+    setTimeout(() => render(), 700);
     setStatus("✔ 完了: " + issue.title);
   } catch (e) {
-    li.classList.remove("done");
+    li.classList.remove("gone");
     btn.classList.remove("on");
     btn.disabled = false;
     setStatus(e.message, true);
   }
 }
-function updateCount() {
-  const n = listEl.querySelectorAll("li:not(.done)").length;
-  countEl.textContent = n ? "残り " + n + " 件" : "";
-  emptyEl.hidden = n > 0;
+
+async function holdIssue(issue) {
+  if (!requireToken()) return;
+  issues = issues.filter((x) => x.number !== issue.number);
+  issue.labels = [...(issue.labels || []), { name: HOLD_LABEL }];
+  held.push(issue);
+  render();
+  setStatus("⏸ 保留にしました: " + issue.title);
+  try {
+    await addLabel(issue.number, HOLD_LABEL);
+  } catch (e) {
+    held = held.filter((x) => x.number !== issue.number);
+    issue.labels = (issue.labels || []).filter((l) => (typeof l === "string" ? l : l.name) !== HOLD_LABEL);
+    issues.push(issue);
+    issues.sort((a, b) => (cfg.oldestFirst ? 1 : -1) * (new Date(a.created_at) - new Date(b.created_at)));
+    render();
+    setStatus(e.message, true);
+  }
 }
+
+async function resumeIssue(issue) {
+  if (!requireToken()) return;
+  held = held.filter((x) => x.number !== issue.number);
+  issue.labels = (issue.labels || []).filter((l) => (typeof l === "string" ? l : l.name) !== HOLD_LABEL);
+  issues.push(issue);
+  issues.sort((a, b) => (cfg.oldestFirst ? 1 : -1) * (new Date(a.created_at) - new Date(b.created_at)));
+  render();
+  setStatus("▶ 本流に戻しました: " + issue.title);
+  try {
+    await removeLabel(issue.number, HOLD_LABEL);
+  } catch (e) {
+    issues = issues.filter((x) => x.number !== issue.number);
+    issue.labels = [...(issue.labels || []), { name: HOLD_LABEL }];
+    held.push(issue);
+    render();
+    setStatus(e.message, true);
+  }
+}
+
+$("holdToggle").addEventListener("click", () => { holdOpen = !holdOpen; renderHold(); });
 
 function setStatus(msg, isErr) {
   statusEl.textContent = msg || "";
@@ -345,7 +706,10 @@ async function refresh() {
   refreshing = true;
   setStatus("読み込み中…");
   try {
-    render(await fetchTodos());
+    const all = await fetchTodos();
+    issues = all.filter((i) => !isHeld(i));
+    held = all.filter(isHeld);
+    render();
     setStatus("");
   } catch (e) {
     setStatus(e.message, true);
@@ -354,11 +718,11 @@ async function refresh() {
   }
 }
 
-// ---------- 追加 ----------
 async function addTodo() {
   const input = $("addInput");
   const title = input.value.trim();
   if (!title) return;
+  if (!requireToken()) return;
   $("addBtn").disabled = true;
   try {
     await createIssue(title);
@@ -376,14 +740,16 @@ $("addInput").addEventListener("keydown", (e) => { if (e.key === "Enter") addTod
 
 // ---------- 設定 ----------
 const dlg = $("settings");
-$("settingsBtn").addEventListener("click", () => {
+function openSettings() {
+  if (dlg.open) return;
   $("cfgRepo").value = cfg.repo;
   $("cfgLabel").value = cfg.label;
   $("cfgToken").value = cfg.token || "";
   $("cfgSound").checked = cfg.sound;
   $("cfgOldestFirst").checked = cfg.oldestFirst;
   dlg.showModal();
-});
+}
+$("settingsBtn").addEventListener("click", openSettings);
 $("cfgCancel").addEventListener("click", () => dlg.close());
 $("cfgSave").addEventListener("click", () => {
   cfg = {
@@ -402,6 +768,11 @@ $("refreshBtn").addEventListener("click", refresh);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 setInterval(() => { if (!document.hidden) refresh(); }, 60000);
 refresh();
+
+// ---------- PWA ----------
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 </script>
 </body>
 </html>

@@ -10,8 +10,7 @@ const port = Number(process.env.PORT || 4310);
 const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json" };
 
 createServer(async (req, res) => {
-  const pathname = new URL(req.url, "http://x").pathname;
-  const path = normalize(pathname).replace(/^[/\\]+/, "") || "index.html";
+  const path = normalize(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html";
   const file = join(root, path);
   if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
   try {
