@@ -1,5 +1,5 @@
 // AI Todo の Service Worker: アプリ本体をキャッシュ(ネットワーク優先、オフライン時はキャッシュ)
-const CACHE = "ai-todo-v2";
+const CACHE = "ai-todo-v3";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {

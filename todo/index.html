@@ -167,7 +167,7 @@
   .empty .big { font-size: 2rem; display: block; margin-bottom: 8px; }
 
   .status { font-size: .78rem; color: var(--muted); margin-top: 14px; min-height: 1.2em; }
-  .status.err { color: var(--danger); }
+  .status.err { color: var(--danger); font-weight: 600; }
 
   dialog#settings {
     border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink);
@@ -300,39 +300,37 @@ function ctx() {
   if (audioCtx.state === "suspended") audioCtx.resume();
   return audioCtx;
 }
-function playDoneSound() {  // タスク完了: ポン + きらっと上昇アルペジオ
+function note(a, t, f, { dur = 0.5, g = 0.2, type = "triangle", attack = 0.012, glideTo = null } = {}) {
+  const o = a.createOscillator(), gn = a.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f, t);
+  if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, t + dur * 0.8);
+  gn.gain.setValueAtTime(0.0001, t);
+  gn.gain.exponentialRampToValueAtTime(g, t + attack);
+  gn.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(gn).connect(a.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function playDoneSound() {  // タスク完了: 「おめでとう」— 低音の芯 + 上昇2音 + 長調の余韻 + きらめき
   if (!cfg.sound) return;
   try {
     const a = ctx(), t0 = a.currentTime;
-    const thump = a.createOscillator(), tg = a.createGain();
-    thump.type = "sine";
-    thump.frequency.setValueAtTime(320, t0);
-    thump.frequency.exponentialRampToValueAtTime(160, t0 + 0.12);
-    tg.gain.setValueAtTime(0.25, t0);
-    tg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
-    thump.connect(tg).connect(a.destination);
-    thump.start(t0); thump.stop(t0 + 0.18);
-    [[1318.5, 0.00], [1661.2, 0.07], [1975.5, 0.14]].forEach(([f, dt]) => {
-      const o = a.createOscillator(), g = a.createGain();
-      o.type = "triangle"; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, t0 + dt);
-      g.gain.exponentialRampToValueAtTime(0.18, t0 + dt + 0.015);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + dt + 0.5);
-      o.connect(g).connect(a.destination);
-      o.start(t0 + dt); o.stop(t0 + dt + 0.55);
-    });
+    note(a, t0, 240, { type: "sine", glideTo: 120, dur: 0.16, g: 0.22, attack: 0.004 });   // 芯のある「ポン」
+    note(a, t0, 987.77, { dur: 0.4, g: 0.2 });                                             // B5
+    note(a, t0 + 0.09, 1318.5, { dur: 0.55, g: 0.24 });                                    // E6(上昇で達成感)
+    [659.26, 830.61, 987.77, 1318.5].forEach((f) =>                                        // E長調コードの余韻
+      note(a, t0 + 0.18, f, { type: "sine", dur: 0.9, g: 0.065, attack: 0.03 }));
+    note(a, t0 + 0.26, 1975.5, { dur: 0.5, g: 0.06 });                                     // きらめき B6
+    note(a, t0 + 0.34, 2637.0, { dur: 0.6, g: 0.05 });                                     // きらめき E7
   } catch { /* 音は失敗しても本体機能に影響なし */ }
 }
-function playTickSound() {  // 子ステップ完了: 短いクリック音
+function playTickSound() {  // 子ステップ完了: 明るい2音の「タ・ディン」(親より控えめ)
   if (!cfg.sound) return;
   try {
     const a = ctx(), t0 = a.currentTime;
-    const o = a.createOscillator(), g = a.createGain();
-    o.type = "triangle"; o.frequency.value = 1240;
-    g.gain.setValueAtTime(0.12, t0);
-    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09);
-    o.connect(g).connect(a.destination);
-    o.start(t0); o.stop(t0 + 0.1);
+    note(a, t0, 500, { type: "sine", glideTo: 300, dur: 0.05, g: 0.1, attack: 0.003 });
+    note(a, t0, 880, { dur: 0.16, g: 0.14 });          // A5
+    note(a, t0 + 0.055, 1318.5, { dur: 0.28, g: 0.16 }); // E6
   } catch {}
 }
 
@@ -524,7 +522,16 @@ function renderItem(issue, isNext) {
 }
 
 // ---------- 操作 ----------
+// トークンがなければ、無音+設定画面を開いて理由を示す(黙って元に戻さない)
+function requireToken() {
+  if (cfg.token) return true;
+  setStatus("チェックを保存するには GitHub トークンが必要です。作り方はタスク「AI Todo を使える状態にする」(#1) の手順どおりでOK。", true);
+  openSettings();
+  return false;
+}
+
 async function toggleStep(issue, taskIndex, checked) {
+  if (!requireToken()) return;
   const newBody = toggleTaskInBody(issue.body || "", taskIndex, checked);
   const oldBody = issue.body;
   issue.body = newBody;      // 楽観更新
@@ -540,6 +547,7 @@ async function toggleStep(issue, taskIndex, checked) {
 }
 
 async function completeIssue(li, btn, issue) {
+  if (!requireToken()) return;
   if (btn.disabled) return;
   btn.disabled = true;
   btn.classList.add("on");
@@ -583,6 +591,7 @@ async function addTodo() {
   const input = $("addInput");
   const title = input.value.trim();
   if (!title) return;
+  if (!requireToken()) return;
   $("addBtn").disabled = true;
   try {
     await createIssue(title);
@@ -600,14 +609,16 @@ $("addInput").addEventListener("keydown", (e) => { if (e.key === "Enter") addTod
 
 // ---------- 設定 ----------
 const dlg = $("settings");
-$("settingsBtn").addEventListener("click", () => {
+function openSettings() {
+  if (dlg.open) return;
   $("cfgRepo").value = cfg.repo;
   $("cfgLabel").value = cfg.label;
   $("cfgToken").value = cfg.token || "";
   $("cfgSound").checked = cfg.sound;
   $("cfgOldestFirst").checked = cfg.oldestFirst;
   dlg.showModal();
-});
+}
+$("settingsBtn").addEventListener("click", openSettings);
 $("cfgCancel").addEventListener("click", () => dlg.close());
 $("cfgSave").addEventListener("click", () => {
   cfg = {
