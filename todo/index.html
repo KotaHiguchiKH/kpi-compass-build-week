@@ -304,7 +304,18 @@ async function fetchTodos() {
     + "&sort=created&direction=" + (cfg.oldestFirst ? "asc" : "desc");
   const res = await fetch(url, { headers: apiHeaders(false) });
   if (!res.ok) throw new Error("読み込み失敗 (" + res.status + "): " + (res.status === 403 ? "APIレート制限の可能性。トークンを設定すると解消します。" : ""));
-  return (await res.json()).filter(i => !i.pull_request);
+  const labeled = (await res.json()).filter(i => !i.pull_request);
+
+  // GitHub連携によってはIssue作成はできてもラベル付与だけ失敗する。
+  // ラベル付き取得を主経路にしつつ、_sourceマーカー付きの未完了Issueを救済する。
+  const fallbackUrl = apiBase() + "/issues?state=open&per_page=100&sort=created&direction="
+    + (cfg.oldestFirst ? "asc" : "desc");
+  const fallbackRes = await fetch(fallbackUrl, { headers: apiHeaders(false) });
+  if (!fallbackRes.ok) return labeled;
+  return (await fallbackRes.json()).filter(i => !i.pull_request && (
+    (i.labels || []).some(label => (typeof label === "string" ? label : label.name) === cfg.label)
+    || /_source:\s*.+?_/.test(i.body || "")
+  ));
 }
 
 async function patchIssue(number, payload) {
