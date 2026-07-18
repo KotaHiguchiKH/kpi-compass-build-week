@@ -160,6 +160,14 @@
   }
   .copybtn.copied { background: var(--accent-soft); color: var(--accent); }
 
+  .taskactions { display: flex; gap: 8px; margin: 2px 0 10px; flex-wrap: wrap; }
+  .taskbtn {
+    border: 1px solid var(--line); background: none; color: var(--muted);
+    border-radius: 8px; padding: 4px 12px; font-size: .8rem; font-weight: 600; cursor: pointer;
+  }
+  .taskbtn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .taskbtn.copied { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+
   .holdbtn {
     flex: none; background: none; border: none; color: var(--muted); cursor: pointer;
     font-size: .95rem; margin-top: 3px; padding: 2px 6px; border-radius: 6px;
@@ -471,17 +479,46 @@ function renderInline(text) {
 }
 
 // ---------- コピー ----------
+function copyViaTextarea(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.append(ta); ta.select();
+  const ok = document.execCommand("copy");
+  ta.remove();
+  if (!ok) throw new Error("execCommand copy failed");
+}
 async function copyText(text, btn) {
   try {
-    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
-    else {
-      const ta = document.createElement("textarea");
-      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-      document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove();
+    if (navigator.clipboard && window.isSecureContext) {
+      // 権限拒否などで失敗することがあるので、旧方式にフォールバックする
+      await navigator.clipboard.writeText(text).catch(() => copyViaTextarea(text));
+    } else {
+      copyViaTextarea(text);
     }
+    const orig = btn.textContent;
     btn.textContent = "✔ コピーした"; btn.classList.add("copied");
-    setTimeout(() => { btn.textContent = "コピー"; btn.classList.remove("copied"); }, 1600);
-  } catch { setStatus("コピーに失敗しました。手動で選択してください。", true); }
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove("copied"); }, 1600);
+    return true;
+  } catch { setStatus("コピーに失敗しました。手動で選択してください。", true); return false; }
+}
+
+// タスク全体(タイトル+本文)を、AIにそのまま貼れるテキストにする
+function buildTaskText(issue) {
+  return ("# " + issue.title + "\n(" + issue.html_url + ")\n\n" + (issue.body || "")).trim();
+}
+
+// タスク全文をコピーし、claude.ai の新規チャットを開く。
+// URLの ?q= で入力欄への事前入力を試みる(効かない環境でもクリップボードに入っているので貼るだけ)
+async function consultClaude(issue, btn) {
+  const text = "以下のタスクについて相談させてください。\n\n" + buildTaskText(issue);
+  await copyText(text, btn);
+  // claude.ai は3万字超のURLも受けることを確認済み。念のため超過時は素の新規チャットを開く
+  const url = "https://claude.ai/new?q=" + encodeURIComponent(text);
+  const a = document.createElement("a");
+  a.href = url.length <= 30000 ? url : "https://claude.ai/new";
+  a.target = "_blank"; a.rel = "noopener";
+  document.body.append(a); a.click(); a.remove();
+  setStatus("タスク全文をコピーして Claude を開きました。入力欄が空なら貼り付けて (Ctrl+V) 送信してください。");
 }
 
 const LANG_LABEL = { prompt: "AIに貼るプロンプト", bash: "コマンド", powershell: "コマンド", sh: "コマンド", cmd: "コマンド", "": "コピーして使う" };
@@ -572,6 +609,18 @@ function renderItem(issue, isNext) {
   // --- 詳細(レシピ) ---
   const detail = document.createElement("div");
   detail.className = "detail";
+  const actions = document.createElement("div");
+  actions.className = "taskactions";
+  const copyAllBtn = document.createElement("button");
+  copyAllBtn.className = "taskbtn"; copyAllBtn.textContent = "📋 タスク全体をコピー";
+  copyAllBtn.title = "タイトル+手順の全文をコピー(AIへの相談用など)";
+  copyAllBtn.addEventListener("click", (e) => { e.stopPropagation(); copyText(buildTaskText(issue), copyAllBtn); });
+  const consultBtn = document.createElement("button");
+  consultBtn.className = "taskbtn"; consultBtn.textContent = "🤖 Claudeに相談";
+  consultBtn.title = "全文をコピーして claude.ai の新規チャットを開く";
+  consultBtn.addEventListener("click", (e) => { e.stopPropagation(); consultClaude(issue, consultBtn); });
+  actions.append(copyAllBtn, consultBtn);
+  detail.append(actions);
   for (const b of blocks) {
     if (b.type === "step") {
       const row = document.createElement("div");
