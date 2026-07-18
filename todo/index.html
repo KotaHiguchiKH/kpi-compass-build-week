@@ -160,6 +160,29 @@
   }
   .copybtn.copied { background: var(--accent-soft); color: var(--accent); }
 
+  .holdbtn {
+    flex: none; background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: .95rem; margin-top: 3px; padding: 2px 6px; border-radius: 6px;
+  }
+  .holdbtn:hover { color: var(--accent); background: var(--accent-soft); }
+  .holdsec { margin-top: 22px; }
+  .holdtoggle {
+    width: 100%; text-align: left; background: none; border: none; color: var(--muted);
+    font-size: .85rem; cursor: pointer; padding: 6px 2px;
+  }
+  ul.holdlist { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .holditem {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px dashed var(--line); border-radius: 10px; padding: 8px 12px; color: var(--muted);
+  }
+  .holditem .t { flex: 1; font-size: .9rem; overflow-wrap: anywhere; }
+  .holditem a { color: var(--muted); font-size: .8rem; }
+  .resumebtn {
+    border: 1px solid var(--line); background: none; color: var(--muted);
+    border-radius: 7px; padding: 3px 10px; font-size: .8rem; cursor: pointer; white-space: nowrap;
+  }
+  .resumebtn:hover { color: var(--accent); border-color: var(--accent); }
+
   .empty {
     text-align: center; color: var(--muted); padding: 56px 12px; font-size: .95rem;
     border: 1px dashed var(--line); border-radius: 12px;
@@ -208,6 +231,10 @@
     <span class="big">🎉</span>
     全部完了。いま、あなたはボトルネックではありません。
   </div>
+  <div class="holdsec" id="holdsec" hidden>
+    <button class="holdtoggle" id="holdToggle">▸ ⏸ 保留中 <span id="holdCount"></span></button>
+    <ul class="holdlist" id="holdlist" hidden></ul>
+  </div>
   <div class="status" id="status"></div>
 </div>
 
@@ -252,9 +279,16 @@ let cfg = loadCfg();
 
 const $ = (id) => document.getElementById(id);
 const listEl = $("list"), emptyEl = $("empty"), statusEl = $("status"), countEl = $("count");
-let issues = [];                 // 現在表示中の issue 一覧(メモリ上の状態)
+let issues = [];                 // 本流に表示中の issue 一覧(メモリ上の状態)
+let held = [];                   // 保留中の issue 一覧
+const HOLD_LABEL = "ai-todo-hold";
 const expanded = new Set();      // 開いているカードの issue number
 let autoExpandDone = false;
+let holdOpen = false;
+
+function isHeld(issue) {
+  return (issue.labels || []).some((l) => (typeof l === "string" ? l : l.name) === HOLD_LABEL);
+}
 
 // ---------- GitHub API ----------
 function apiHeaders(write) {
@@ -281,6 +315,23 @@ async function patchIssue(number, payload) {
   });
   if (!res.ok) throw new Error("反映に失敗 (" + res.status + ")。トークンの権限 (Issues: Read and write) を確認してください。");
   return res.json();
+}
+
+async function addLabel(number, label) {
+  const res = await fetch(apiBase() + "/issues/" + number + "/labels", {
+    method: "POST",
+    headers: { ...apiHeaders(true), "Content-Type": "application/json" },
+    body: JSON.stringify({ labels: [label] })
+  });
+  if (!res.ok) throw new Error("保留の反映に失敗 (" + res.status + ")。トークンの権限を確認してください。");
+}
+
+async function removeLabel(number, label) {
+  const res = await fetch(apiBase() + "/issues/" + number + "/labels/" + encodeURIComponent(label), {
+    method: "DELETE",
+    headers: apiHeaders(true)
+  });
+  if (!res.ok && res.status !== 404) throw new Error("保留解除に失敗 (" + res.status + ")。トークンの権限を確認してください。");
 }
 
 async function createIssue(title) {
@@ -438,6 +489,30 @@ function render() {
   issues.forEach((issue, idx) => listEl.append(renderItem(issue, idx === 0)));
   emptyEl.hidden = issues.length > 0;
   countEl.textContent = issues.length ? "残り " + issues.length + " 件" : "";
+  renderHold();
+}
+
+function renderHold() {
+  const sec = $("holdsec"), ul = $("holdlist");
+  sec.hidden = held.length === 0;
+  $("holdCount").textContent = held.length ? held.length + " 件" : "";
+  $("holdToggle").firstChild.textContent = (holdOpen ? "▾" : "▸") + " ⏸ 保留中 ";
+  ul.hidden = !holdOpen;
+  ul.textContent = "";
+  for (const issue of held) {
+    const li = document.createElement("li");
+    li.className = "holditem";
+    const t = document.createElement("span");
+    t.className = "t";
+    t.textContent = issue.title;
+    const link = document.createElement("a");
+    link.href = issue.html_url; link.target = "_blank"; link.rel = "noopener"; link.textContent = "#" + issue.number;
+    const btn = document.createElement("button");
+    btn.className = "resumebtn"; btn.textContent = "▶ 戻す";
+    btn.addEventListener("click", () => resumeIssue(issue));
+    li.append(t, link, btn);
+    ul.append(li);
+  }
 }
 
 function renderItem(issue, isNext) {
@@ -473,8 +548,11 @@ function renderItem(issue, isNext) {
   link.href = issue.html_url; link.target = "_blank"; link.rel = "noopener"; link.textContent = "#" + issue.number;
   meta.append(link);
   hbody.append(title, meta);
+  const holdBtn = document.createElement("button");
+  holdBtn.className = "holdbtn"; holdBtn.textContent = "⏸"; holdBtn.title = "保留にする(消さずに脇へ置く)";
+  holdBtn.addEventListener("click", (e) => { e.stopPropagation(); holdIssue(issue); });
   const caret = document.createElement("span"); caret.className = "caret"; caret.textContent = "▶";
-  head.append(check, hbody, caret);
+  head.append(check, hbody, holdBtn, caret);
   head.addEventListener("click", () => {
     if (expanded.has(issue.number)) expanded.delete(issue.number); else expanded.add(issue.number);
     li.classList.toggle("open");
@@ -566,6 +644,46 @@ async function completeIssue(li, btn, issue) {
   }
 }
 
+async function holdIssue(issue) {
+  if (!requireToken()) return;
+  issues = issues.filter((x) => x.number !== issue.number);
+  issue.labels = [...(issue.labels || []), { name: HOLD_LABEL }];
+  held.push(issue);
+  render();
+  setStatus("⏸ 保留にしました: " + issue.title);
+  try {
+    await addLabel(issue.number, HOLD_LABEL);
+  } catch (e) {
+    held = held.filter((x) => x.number !== issue.number);
+    issue.labels = (issue.labels || []).filter((l) => (typeof l === "string" ? l : l.name) !== HOLD_LABEL);
+    issues.push(issue);
+    issues.sort((a, b) => (cfg.oldestFirst ? 1 : -1) * (new Date(a.created_at) - new Date(b.created_at)));
+    render();
+    setStatus(e.message, true);
+  }
+}
+
+async function resumeIssue(issue) {
+  if (!requireToken()) return;
+  held = held.filter((x) => x.number !== issue.number);
+  issue.labels = (issue.labels || []).filter((l) => (typeof l === "string" ? l : l.name) !== HOLD_LABEL);
+  issues.push(issue);
+  issues.sort((a, b) => (cfg.oldestFirst ? 1 : -1) * (new Date(a.created_at) - new Date(b.created_at)));
+  render();
+  setStatus("▶ 本流に戻しました: " + issue.title);
+  try {
+    await removeLabel(issue.number, HOLD_LABEL);
+  } catch (e) {
+    issues = issues.filter((x) => x.number !== issue.number);
+    issue.labels = [...(issue.labels || []), { name: HOLD_LABEL }];
+    held.push(issue);
+    render();
+    setStatus(e.message, true);
+  }
+}
+
+$("holdToggle").addEventListener("click", () => { holdOpen = !holdOpen; renderHold(); });
+
 function setStatus(msg, isErr) {
   statusEl.textContent = msg || "";
   statusEl.className = "status" + (isErr ? " err" : "");
@@ -577,7 +695,9 @@ async function refresh() {
   refreshing = true;
   setStatus("読み込み中…");
   try {
-    issues = await fetchTodos();
+    const all = await fetchTodos();
+    issues = all.filter((i) => !isHeld(i));
+    held = all.filter(isHeld);
     render();
     setStatus("");
   } catch (e) {
