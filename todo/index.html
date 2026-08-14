@@ -19,6 +19,9 @@
     --accent-soft: #e7f1ec;
     --accent-ink: #ffffff;
     --danger: #b3402f;
+    --ok: #0f8a5f; --ok-bg: #e4f6ee;
+    --warn: #a15c00; --warn-bg: #fdf0dc;
+    --hot: #c0392b; --hot-bg: #fdebe8;
     --code-bg: #f0efeb;
     --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
   }
@@ -32,6 +35,9 @@
       --accent: #58b98c;
       --accent-soft: #23352c;
       --accent-ink: #10231a;
+      --ok: #4ecf9a; --ok-bg: #12291f;
+      --warn: #e0a33a; --warn-bg: #2c2311;
+      --hot: #ff7a6b; --hot-bg: #2e1815;
       --code-bg: #17191b;
       --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
     }
@@ -69,7 +75,20 @@
   }
   .addrow button:disabled { opacity: .5; cursor: default; }
 
-  ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .list { display: flex; flex-direction: column; }
+  .section { margin-bottom: 6px; }
+  .sechead {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    background: none; border: none; cursor: pointer; padding: 10px 4px;
+    font-size: .95rem; font-weight: 700; color: var(--ink); font-family: inherit;
+  }
+  .secarrow { color: var(--muted); font-size: .75rem; transition: transform .2s; flex: none; }
+  .sechead.open .secarrow { transform: rotate(90deg); }
+  .secbadge {
+    background: var(--accent-soft); color: var(--accent); border-radius: 20px;
+    padding: 1px 9px; font-size: .78rem; font-weight: 700;
+  }
+  ul.itemlist { list-style: none; margin: 4px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   li.item {
     background: var(--card); border: 1px solid var(--line); border-radius: 14px;
     box-shadow: var(--shadow); overflow: hidden;
@@ -111,6 +130,10 @@
     padding: 1px 9px; font-weight: 600;
   }
   .nextchip { background: var(--accent); color: var(--accent-ink); }
+  .pill { border-radius: 20px; padding: 1px 9px; font-weight: 700; }
+  .pill.g { background: var(--ok-bg); color: var(--ok); }
+  .pill.a { background: var(--warn-bg); color: var(--warn); }
+  .pill.r { background: var(--hot-bg); color: var(--hot); }
   .caret { flex: none; color: var(--muted); font-size: .8rem; margin-top: 6px; transition: transform .2s; }
   .open .caret { transform: rotate(90deg); }
 
@@ -167,6 +190,7 @@
   }
   .taskbtn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
   .taskbtn.copied { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .taskbtn.ok { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 
   .holdbtn {
     flex: none; background: none; border: none; color: var(--muted); cursor: pointer;
@@ -234,7 +258,7 @@
     <button id="addBtn">追加</button>
   </div>
 
-  <ul class="list" id="list"></ul>
+  <div class="list" id="list"></div>
   <div class="empty" id="empty" hidden>
     <span class="big">🎉</span>
     全部完了。いま、あなたはボトルネックではありません。
@@ -487,7 +511,8 @@ function copyViaTextarea(text) {
   ta.remove();
   if (!ok) throw new Error("execCommand copy failed");
 }
-async function copyText(text, btn) {
+// クリップボードへ書き込むだけの下請け。成功/失敗を真偽値で返す(状態表示はしない)
+async function writeClipboard(text) {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       // 権限拒否などで失敗することがあるので、旧方式にフォールバックする
@@ -495,11 +520,16 @@ async function copyText(text, btn) {
     } else {
       copyViaTextarea(text);
     }
-    const orig = btn.textContent;
-    btn.textContent = "✔ コピーした"; btn.classList.add("copied");
-    setTimeout(() => { btn.textContent = orig; btn.classList.remove("copied"); }, 1600);
     return true;
-  } catch { setStatus("コピーに失敗しました。手動で選択してください。", true); return false; }
+  } catch { return false; }
+}
+async function copyText(text, btn) {
+  const ok = await writeClipboard(text);
+  if (!ok) { setStatus("コピーに失敗しました。手動で選択してください。", true); return false; }
+  const orig = btn.textContent;
+  btn.textContent = "✔ コピーした"; btn.classList.add("copied");
+  setTimeout(() => { btn.textContent = orig; btn.classList.remove("copied"); }, 1600);
+  return true;
 }
 
 // タスク全体(タイトル+本文)を、AIにそのまま貼れるテキストにする
@@ -507,18 +537,33 @@ function buildTaskText(issue) {
   return ("# " + issue.title + "\n(" + issue.html_url + ")\n\n" + (issue.body || "")).trim();
 }
 
-// タスク全文をコピーし、claude.ai の新規チャットを開く。
-// URLの ?q= で入力欄への事前入力を試みる(効かない環境でもクリップボードに入っているので貼るだけ)
+// Claude Code への相談プロンプト(html-view.mjs の .ask ハンドラと同一文面)
+function buildConsultText(issue) {
+  return [
+    "ai-todo #" + issue.number + " について相談したい。納得できていないので、実行する前に是非を一緒に判断したい。",
+    "",
+    "タイトル: " + issue.title,
+    "URL: " + issue.html_url,
+    "",
+    "聞きたいこと:",
+    "- このタスクは今も必要か（方針が変わって不要になっていないか）",
+    "- やらない選択肢はあるか。やらないと実際に何が起きるか",
+    "- やるなら、今のフェーズで最も効く形はどれか",
+    "",
+    "参照: C:\\Users\\anusu\\kota-md\\md差分ログ.md を検索して現在の方針を確認すること。",
+    "不要と判断したら gh issue close " + issue.number + " -R KotaHiguchiKH/kpi-compass-build-week まで実行してよい。"
+  ].join("\n");
+}
+
+// 相談プロンプトをコピーするだけ(新規タブは開かない)。
+// claude.ai の Web チャットはローカルの kota-md や gh CLI に触れられず相談にならないため、
+// 投げ先はローカルで動く Claude Code に限定し、貼り付け前提のクリップボード運用にする。
 async function consultClaude(issue, btn) {
-  const text = "以下のタスクについて相談させてください。\n\n" + buildTaskText(issue);
-  await copyText(text, btn);
-  // claude.ai は3万字超のURLも受けることを確認済み。念のため超過時は素の新規チャットを開く
-  const url = "https://claude.ai/new?q=" + encodeURIComponent(text);
-  const a = document.createElement("a");
-  a.href = url.length <= 30000 ? url : "https://claude.ai/new";
-  a.target = "_blank"; a.rel = "noopener";
-  document.body.append(a); a.click(); a.remove();
-  setStatus("タスク全文をコピーして Claude を開きました。入力欄が空なら貼り付けて (Ctrl+V) 送信してください。");
+  const ok = await writeClipboard(buildConsultText(issue));
+  const orig = btn.textContent;
+  btn.textContent = ok ? "✅ コピーした。Claude Codeに貼って" : "コピーできませんでした";
+  if (ok) btn.classList.add("ok");
+  setTimeout(() => { btn.textContent = orig; btn.classList.remove("ok"); }, 3500);
 }
 
 const LANG_LABEL = { prompt: "AIに貼るプロンプト", bash: "コマンド", powershell: "コマンド", sh: "コマンド", cmd: "コマンド", "": "コピーして使う" };
@@ -530,14 +575,186 @@ function relTime(iso) {
   if (s < 86400) return Math.floor(s / 3600) + "時間前";
   return Math.floor(s / 86400) + "日前";
 }
+function daysSince(iso) {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+function pillClass(days) {          // html-view.mjs の bucketOf と同じ配色ルール
+  if (days >= 21) return "r";
+  if (days >= 7) return "a";
+  return "g";
+}
+
+// ---------- 期限(締切)の抽出 ----------
+// タイトルを優先し、見つからなければ本文の先頭2000文字を見る。
+// 1) 本日中/今日中 2) 期限・締切・〆切・まで・必着の近くにある日付 3) M月中 4) タイトル中の単独 M/D
+function startOfToday() {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+function inferYear(month, day) {
+  const today0 = startOfToday();
+  let candidate = new Date(today0.getFullYear(), month - 1, day);
+  const pastDays = Math.round((today0 - candidate) / 86400000);
+  if (pastDays > 60) candidate = new Date(today0.getFullYear() + 1, month - 1, day); // 60日以上過去なら翌年とみなす
+  return candidate;
+}
+// text 内の M/D・M月D日 をすべて拾う(範囲外の数値は除外)。位置情報付きでキーワード近接判定に使う
+function scanDates(text) {
+  const out = [];
+  let m;
+  const reKanji = /(\d{1,2})月(\d{1,2})日/g;
+  while ((m = reKanji.exec(text))) out.push({ month: +m[1], day: +m[2], start: m.index, end: m.index + m[0].length });
+  // "2026/08/14" のような YYYY/MM/DD の途中(MM/DD部分)を誤って拾わないよう前後を守る
+  const reSlash = /(?<!\d)(?<!\d\/)(\d{1,2})\/(\d{1,2})(?!\d)(?!\/\d)/g;
+  while ((m = reSlash.exec(text))) out.push({ month: +m[1], day: +m[2], start: m.index, end: m.index + m[0].length });
+  return out.filter((d) => d.month >= 1 && d.month <= 12 && d.day >= 1 && d.day <= 31)
+            .sort((a, b) => a.start - b.start);
+}
+// タイトル中の単独 M/D(曜日つき可)。「M/D-M/D」は最初の日付だけ拾う
+function scanBareSlashDates(text) {
+  const re = /(?<!\d)(?<!\d\/)(\d{1,2})\/(\d{1,2})(?:\([月火水木金土日]\))?(?!\d)(?!\/\d)/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(text))) {
+    const month = +m[1], day = +m[2];
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) out.push({ month, day });
+  }
+  return out;
+}
+function scanRulesForDue(text, allowBare) {
+  if (!text) return null;
+  if (/本日中|今日中|【本日中】/.test(text)) return startOfToday();
+  // 期限系キーワードに最も近い日付を採用する(単に左から最初に見つかった日付ではない)
+  const keywords = [];
+  const kwRe = /期限|締切|〆切|まで|必着/g;
+  let km;
+  while ((km = kwRe.exec(text))) keywords.push({ start: km.index, end: km.index + km[0].length });
+  if (keywords.length) {
+    let best = null, bestDist = Infinity;
+    for (const d of scanDates(text)) {
+      for (const k of keywords) {
+        const dist = d.start >= k.end ? d.start - k.end : (k.start >= d.end ? k.start - d.end : 0);
+        if (dist <= 20 && dist < bestDist) { bestDist = dist; best = d; }
+      }
+    }
+    if (best) return inferYear(best.month, best.day);
+  }
+  const monthMatch = /(?:※\s*)?(\d{1,2})月中/.exec(text);
+  if (monthMatch) {
+    const month = +monthMatch[1];
+    if (month >= 1 && month <= 12) {
+      const y = inferYear(month, 1).getFullYear();
+      return new Date(y, month, 0); // 月末日(翌月の0日目)
+    }
+  }
+  if (allowBare) {
+    const bare = scanBareSlashDates(text);
+    if (bare.length) {
+      const dates = bare.map((d) => inferYear(d.month, d.day));
+      const today0 = startOfToday();
+      const future = dates.filter((dt) => dt >= today0);
+      const pick = future.length ? future : dates;
+      return pick.reduce((min, dt) => (dt < min ? dt : min));
+    }
+  }
+  return null;
+}
+// タイトル+本文から締切日を推定する。見つからなければ null
+function dueOf(issue) {
+  const title = issue.title || "";
+  const body = (issue.body || "").slice(0, 2000);
+  return scanRulesForDue(title, true) || scanRulesForDue(body, false);
+}
+function daysUntilDue(due) {
+  return Math.round((due - startOfToday()) / 86400000);
+}
+function sectionKeyOfDue(due) {
+  const diff = daysUntilDue(due);
+  if (diff <= 0) return "now";
+  if (diff <= 7) return "week";
+  if (diff <= 31) return "month";
+  return "later";
+}
+
+// ---------- セクション(期限別)分け ----------
+const SECTION_DEFS = [
+  { key: "now",     label: "🔥 いま" },
+  { key: "week",    label: "📅 今週" },
+  { key: "consult", label: "🤔 要相談" },
+  { key: "month",   label: "🗓 今月" },
+  { key: "none",    label: "📥 期限なし" },
+  { key: "later",   label: "🌤 先" },
+];
+const SECTION_DEFAULT_OPEN = { now: true, week: true, consult: false, month: false, none: false, later: false };
+const SECTION_LS_KEY = "ai-todo-sections-v1";
+function loadSectionState() {
+  try { return { ...SECTION_DEFAULT_OPEN, ...JSON.parse(localStorage.getItem(SECTION_LS_KEY) || "{}") }; }
+  catch { return { ...SECTION_DEFAULT_OPEN }; }
+}
+function saveSectionState(state) { localStorage.setItem(SECTION_LS_KEY, JSON.stringify(state)); }
+let sectionState = loadSectionState();
+
+// [要相談] は手順ではなく論点が書かれたIssue。本文が散文なので期限抽出が誤爆する
+// (「今日中に送る」「前後3日まで」等を締切として拾う)。そもそも締切を持たない性質なので、
+// 期限判定の対象から外して専用セクションへ入れる
+function isConsult(issue) { return /^\s*\[要相談\]/.test(issue.title || ""); }
+
+// 期限なし・要相談は作成日が古い順、期限ありは期限の早い順
+function groupBySection(list) {
+  const groups = {}; const due = new Map();
+  for (const def of SECTION_DEFS) groups[def.key] = [];
+  for (const issue of list) {
+    if (isConsult(issue)) { groups.consult.push(issue); continue; }
+    const d = dueOf(issue);
+    due.set(issue.number, d);
+    groups[d ? sectionKeyOfDue(d) : "none"].push(issue);
+  }
+  groups.consult.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  groups.none.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  for (const key of ["now", "week", "month", "later"]) {
+    groups[key].sort((a, b) => due.get(a.number) - due.get(b.number));
+  }
+  return groups;
+}
 
 function render() {
   listEl.textContent = "";
-  if (!autoExpandDone && issues.length) { expanded.add(issues[0].number); autoExpandDone = true; }
-  issues.forEach((issue, idx) => listEl.append(renderItem(issue, idx === 0)));
+  const groups = groupBySection(issues);
+  const nextGroup = SECTION_DEFS.map((d) => groups[d.key]).find((g) => g.length);
+  const nextIssue = nextGroup ? nextGroup[0] : null;
+  if (!autoExpandDone && nextIssue) { expanded.add(nextIssue.number); autoExpandDone = true; }
+  for (const def of SECTION_DEFS) {
+    const group = groups[def.key];
+    if (group.length) listEl.append(renderSection(def, group, nextIssue));
+  }
   emptyEl.hidden = issues.length > 0;
   countEl.textContent = issues.length ? "残り " + issues.length + " 件" : "";
   renderHold();
+}
+
+// 期限セクション1つ分(見出し+開閉+件数バッジ)を組み立てる
+function renderSection(def, group, nextIssue) {
+  const wrap = document.createElement("div");
+  wrap.className = "section";
+  const isOpen = sectionState[def.key];
+  const head = document.createElement("button");
+  head.type = "button";
+  head.className = "sechead" + (isOpen ? " open" : "");
+  const arrow = document.createElement("span"); arrow.className = "secarrow"; arrow.textContent = "▶";
+  const label = document.createElement("span"); label.textContent = def.label;
+  const badge = document.createElement("span"); badge.className = "secbadge"; badge.textContent = group.length + " 件";
+  head.append(arrow, label, badge);
+  const ul = document.createElement("ul");
+  ul.className = "itemlist";
+  ul.hidden = !isOpen;
+  head.addEventListener("click", () => {
+    sectionState[def.key] = !sectionState[def.key];
+    saveSectionState(sectionState);
+    render();
+  });
+  group.forEach((issue) => ul.append(renderItem(issue, !!nextIssue && issue.number === nextIssue.number)));
+  wrap.append(head, ul);
+  return wrap;
 }
 
 function renderHold() {
@@ -587,7 +804,10 @@ function renderItem(issue, isNext) {
   meta.className = "meta";
   if (isNext) { const c = document.createElement("span"); c.className = "chip nextchip"; c.textContent = "▶ 次はこれ"; meta.append(c); }
   if (steps.length) { const c = document.createElement("span"); c.className = "chip"; c.textContent = doneSteps + "/" + steps.length + " 手順"; meta.append(c); }
-  const time = document.createElement("span"); time.textContent = relTime(issue.created_at); meta.append(time);
+  const time = document.createElement("span");
+  time.className = "pill " + pillClass(daysSince(issue.created_at));
+  time.textContent = relTime(issue.created_at);
+  meta.append(time);
   if (source) { const s = document.createElement("span"); s.textContent = "📌 " + source; meta.append(s); }
   if (session && /^https?:\/\//.test(session)) {
     const a = document.createElement("a"); a.href = session; a.target = "_blank"; a.rel = "noopener"; a.textContent = "元セッション ↗"; meta.append(a);
@@ -616,8 +836,8 @@ function renderItem(issue, isNext) {
   copyAllBtn.title = "タイトル+手順の全文をコピー(AIへの相談用など)";
   copyAllBtn.addEventListener("click", (e) => { e.stopPropagation(); copyText(buildTaskText(issue), copyAllBtn); });
   const consultBtn = document.createElement("button");
-  consultBtn.className = "taskbtn"; consultBtn.textContent = "🤖 Claudeに相談";
-  consultBtn.title = "全文をコピーして claude.ai の新規チャットを開く";
+  consultBtn.className = "taskbtn"; consultBtn.textContent = "🤔 納得いかない／Claude Codeに相談する";
+  consultBtn.title = "相談用プロンプトをコピーして、Claude Code に貼る";
   consultBtn.addEventListener("click", (e) => { e.stopPropagation(); consultClaude(issue, consultBtn); });
   actions.append(copyAllBtn, consultBtn);
   detail.append(actions);
