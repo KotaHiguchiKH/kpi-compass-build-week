@@ -19,11 +19,16 @@
     --accent-soft: #e7f1ec;
     --accent-ink: #ffffff;
     --danger: #b3402f;
-    --ok: #0f8a5f; --ok-bg: #e4f6ee;
-    --warn: #a15c00; --warn-bg: #fdf0dc;
-    --hot: #c0392b; --hot-bg: #fdebe8;
     --code-bg: #f0efeb;
     --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+    /* レーン配色(実行順の根拠。ライト) */
+    --lane-deadline: #b3402f; --lane-deadline-bg: #fdebe8;
+    --lane-slot: #b5650a; --lane-slot-bg: #fbe8d3;
+    --lane-waiting: #7b3fa0; --lane-waiting-bg: #f1e5f7;
+    --lane-money: #1f7a4d; --lane-money-bg: #e1f3ea;
+    --lane-prereq: #2159a3; --lane-prereq-bg: #e3ecfa;
+    --lane-normal: #6b6660; --lane-normal-bg: #eeece8;
+    --lane-consult: #97730a; --lane-consult-bg: #faf0d0;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -35,11 +40,15 @@
       --accent: #58b98c;
       --accent-soft: #23352c;
       --accent-ink: #10231a;
-      --ok: #4ecf9a; --ok-bg: #12291f;
-      --warn: #e0a33a; --warn-bg: #2c2311;
-      --hot: #ff7a6b; --hot-bg: #2e1815;
       --code-bg: #17191b;
       --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+      --lane-deadline: #ff7a6b; --lane-deadline-bg: #2e1815;
+      --lane-slot: #f0a24d; --lane-slot-bg: #2e2210;
+      --lane-waiting: #c98ee8; --lane-waiting-bg: #2a1f34;
+      --lane-money: #4ecf9a; --lane-money-bg: #12291f;
+      --lane-prereq: #7fa8ef; --lane-prereq-bg: #16233a;
+      --lane-normal: #b9b4ac; --lane-normal-bg: #24262a;
+      --lane-consult: #e0c256; --lane-consult-bg: #2c2410;
     }
   }
   * { box-sizing: border-box; }
@@ -52,10 +61,9 @@
   }
   .wrap { max-width: 680px; margin: 0 auto; padding: 24px 16px 90px; }
 
-  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
   h1 { font-size: 1.3rem; margin: 0; letter-spacing: .01em; }
   .count { color: var(--muted); font-size: .9rem; }
-  .sub { color: var(--muted); font-size: .82rem; margin: 0 0 20px; }
   .toolbar { display: flex; gap: 8px; margin-left: auto; }
   .iconbtn {
     background: none; border: 1px solid var(--line); color: var(--muted);
@@ -76,19 +84,21 @@
   .addrow button:disabled { opacity: .5; cursor: default; }
 
   .list { display: flex; flex-direction: column; }
-  .section { margin-bottom: 6px; }
+  ul.itemlist { list-style: none; margin: 4px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+  .section { margin-top: 10px; }
   .sechead {
     display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
     background: none; border: none; cursor: pointer; padding: 10px 4px;
-    font-size: .95rem; font-weight: 700; color: var(--ink); font-family: inherit;
+    font-size: .92rem; font-weight: 700; color: var(--muted); font-family: inherit;
   }
-  .secarrow { color: var(--muted); font-size: .75rem; transition: transform .2s; flex: none; }
+  .secarrow { font-size: .75rem; transition: transform .2s; flex: none; }
   .sechead.open .secarrow { transform: rotate(90deg); }
   .secbadge {
     background: var(--accent-soft); color: var(--accent); border-radius: 20px;
     padding: 1px 9px; font-size: .78rem; font-weight: 700;
   }
-  ul.itemlist { list-style: none; margin: 4px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
   li.item {
     background: var(--card); border: 1px solid var(--line); border-radius: 14px;
     box-shadow: var(--shadow); overflow: hidden;
@@ -100,17 +110,25 @@
     opacity: 0; transform: translateX(28px) scale(.97);
     max-height: 0; margin-top: -10px; border-width: 0;
   }
-  li.item.next { border-color: var(--accent); }
+  li.item.top { border-color: var(--accent); border-width: 2px; }
 
-  .head { display: flex; align-items: flex-start; gap: 12px; padding: 13px 14px; cursor: pointer; user-select: none; }
+  .head { display: flex; align-items: center; gap: 8px; padding: 12px 12px; cursor: pointer; user-select: none; }
   .head:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .item.top .head { align-items: flex-start; padding: 16px 14px 12px; }
+
+  .rank {
+    flex: none; width: 26px; text-align: center; font-weight: 800;
+    font-variant-numeric: tabular-nums; color: var(--muted); font-size: 1.05rem;
+  }
+  .item.top .rank { color: var(--accent); font-size: 1.9rem; line-height: 1; }
 
   .check {
-    flex: none; width: 26px; height: 26px; margin-top: 1px;
+    flex: none; width: 24px; height: 24px; margin-top: 1px;
     border: 2px solid var(--muted); border-radius: 50%;
     background: none; cursor: pointer; position: relative;
     transition: border-color .15s, background .15s, transform .1s;
   }
+  .item.top .check { width: 28px; height: 28px; margin-top: 4px; }
   .check:hover { border-color: var(--accent); transform: scale(1.08); }
   .check.on { background: var(--accent); border-color: var(--accent); }
   .check.on::after {
@@ -121,23 +139,31 @@
   @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 50% { box-shadow: 0 0 0 7px transparent; } }
 
   .hbody { flex: 1; min-width: 0; }
-  .title { font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
+  .title { font-size: .96rem; font-weight: 600; overflow-wrap: anywhere; }
+  .item.top .title { font-size: 1.2rem; margin-top: 2px; }
   li.item.gone .title { text-decoration: line-through; }
-  .meta { font-size: .76rem; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .meta a { color: var(--muted); }
-  .chip {
-    background: var(--accent-soft); color: var(--accent); border-radius: 20px;
-    padding: 1px 9px; font-weight: 600;
+  .reason { font-size: .78rem; color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
+  .meta { margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .lane { border-radius: 20px; padding: 2px 10px; font-size: .74rem; font-weight: 700; white-space: nowrap; }
+  .lane-deadline { background: var(--lane-deadline-bg); color: var(--lane-deadline); }
+  .lane-slot     { background: var(--lane-slot-bg);     color: var(--lane-slot); }
+  .lane-waiting  { background: var(--lane-waiting-bg);  color: var(--lane-waiting); }
+  .lane-money    { background: var(--lane-money-bg);    color: var(--lane-money); }
+  .lane-prereq   { background: var(--lane-prereq-bg);   color: var(--lane-prereq); }
+  .lane-normal   { background: var(--lane-normal-bg);   color: var(--lane-normal); }
+  .lane-consult  { background: var(--lane-consult-bg);  color: var(--lane-consult); }
+
+  .num {
+    flex: none; font-size: .72rem; color: var(--muted); opacity: .65;
+    text-decoration: none; align-self: flex-start; margin-top: 3px;
   }
-  .nextchip { background: var(--accent); color: var(--accent-ink); }
-  .pill { border-radius: 20px; padding: 1px 9px; font-weight: 700; }
-  .pill.g { background: var(--ok-bg); color: var(--ok); }
-  .pill.a { background: var(--warn-bg); color: var(--warn); }
-  .pill.r { background: var(--hot-bg); color: var(--hot); }
-  .caret { flex: none; color: var(--muted); font-size: .8rem; margin-top: 6px; transition: transform .2s; }
+  .num:hover { opacity: 1; }
+
+  .caret { flex: none; color: var(--muted); font-size: .8rem; margin-top: 4px; transition: transform .2s; }
   .open .caret { transform: rotate(90deg); }
 
-  .detail { display: none; padding: 2px 16px 16px 52px; }
+  .detail { display: none; padding: 2px 14px 16px 14px; }
+  .item.top .detail { padding: 0 16px 18px 52px; }
   .open .detail { display: block; }
 
   .step { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; }
@@ -162,7 +188,7 @@
   }
 
   .p { font-size: .9rem; margin: 8px 0; overflow-wrap: anywhere; }
-  .p.mutedline { color: var(--muted); }
+  .p.mutedline { color: var(--muted); font-size: .78rem; }
   ul.plain { margin: 4px 0; padding-left: 20px; font-size: .9rem; }
 
   .codeblock { position: relative; margin: 8px 0; }
@@ -194,7 +220,7 @@
 
   .holdbtn {
     flex: none; background: none; border: none; color: var(--muted); cursor: pointer;
-    font-size: .95rem; margin-top: 3px; padding: 2px 6px; border-radius: 6px;
+    font-size: .95rem; margin-top: 2px; padding: 2px 6px; border-radius: 6px;
   }
   .holdbtn:hover { color: var(--accent); background: var(--accent-soft); }
   .holdsec { margin-top: 22px; }
@@ -251,7 +277,6 @@
       <button class="iconbtn" id="settingsBtn" title="設定">⚙ 設定</button>
     </div>
   </header>
-  <p class="sub">AI との作業で発生した「あなたのやること」。上から順に、手順どおりに消すだけ。</p>
 
   <div class="addrow">
     <input id="addInput" type="text" placeholder="手動で追加(Enter)" autocomplete="off">
@@ -313,14 +338,32 @@ const $ = (id) => document.getElementById(id);
 const listEl = $("list"), emptyEl = $("empty"), statusEl = $("status"), countEl = $("count");
 let issues = [];                 // 本流に表示中の issue 一覧(メモリ上の状態)
 let held = [];                   // 保留中の issue 一覧
+let orderItems = [];             // order.json の実行順(num/lane/reason)。取得できなければ空配列
 const HOLD_LABEL = "ai-todo-hold";
-const expanded = new Set();      // 開いているカードの issue number
-let autoExpandDone = false;
+
+// 展開状態(どのカードを開いているか)。issue番号の集合。localStorage に保持する。
+const EXPANDED_LS_KEY = "ai-todo-expanded-v1";
+function loadExpanded() {
+  try { return new Set(JSON.parse(localStorage.getItem(EXPANDED_LS_KEY) || "[]")); }
+  catch { return new Set(); }
+}
+function saveExpanded(set) { localStorage.setItem(EXPANDED_LS_KEY, JSON.stringify([...set])); }
+let expanded = loadExpanded();
+const hadNoSavedExpanded = expanded.size === 0; // 初回起動判定(この後 expanded が空になっても再展開しない)
+let autoOpenApplied = false;
+
+// 「新着・未整列」セクションの開閉状態
+const UNSORTED_LS_KEY = "ai-todo-unsorted-open-v1";
+let unsortedOpen = localStorage.getItem(UNSORTED_LS_KEY) === "1";
 let holdOpen = false;
 
 function isHeld(issue) {
   return (issue.labels || []).some((l) => (typeof l === "string" ? l : l.name) === HOLD_LABEL);
 }
+
+// レーン(実行順の根拠区分)の表示キー。order.json の lane 文字列 → CSS クラス用キー
+const LANE_KEYS = { "締切": "deadline", "枠": "slot", "相手待ち": "waiting", "金": "money", "前提": "prereq", "通常": "normal", "相談": "consult" };
+function laneKey(lane) { return LANE_KEYS[lane] || "normal"; }
 
 // ---------- GitHub API ----------
 function apiHeaders(write) {
@@ -348,6 +391,16 @@ async function fetchTodos() {
     (i.labels || []).some(label => (typeof label === "string" ? label : label.name) === cfg.label)
     || /_source:\s*.+?_/.test(i.body || "")
   ));
+}
+
+// 実行順の正本(order.json)を取得する。無い/壊れている場合は空配列を返し、全件を「新着・未整列」に落とす
+async function fetchOrder() {
+  try {
+    const res = await fetch("order.json", { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.items) ? data.items : [];
+  } catch { return []; }
 }
 
 async function patchIssue(number, payload) {
@@ -568,191 +621,54 @@ async function consultClaude(issue, btn) {
 
 const LANG_LABEL = { prompt: "AIに貼るプロンプト", bash: "コマンド", powershell: "コマンド", sh: "コマンド", cmd: "コマンド", "": "コピーして使う" };
 
-// ---------- 表示 ----------
-function relTime(iso) {
-  const s = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (s < 3600) return Math.max(1, Math.floor(s / 60)) + "分前";
-  if (s < 86400) return Math.floor(s / 3600) + "時間前";
-  return Math.floor(s / 86400) + "日前";
-}
-function daysSince(iso) {
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-}
-function pillClass(days) {          // html-view.mjs の bucketOf と同じ配色ルール
-  if (days >= 21) return "r";
-  if (days >= 7) return "a";
-  return "g";
-}
-
-// ---------- 期限(締切)の抽出 ----------
-// タイトルを優先し、見つからなければ本文の先頭2000文字を見る。
-// 1) 本日中/今日中 2) 期限・締切・〆切・まで・必着の近くにある日付 3) M月中 4) タイトル中の単独 M/D
-function startOfToday() {
-  const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
-}
-function inferYear(month, day) {
-  const today0 = startOfToday();
-  let candidate = new Date(today0.getFullYear(), month - 1, day);
-  const pastDays = Math.round((today0 - candidate) / 86400000);
-  if (pastDays > 60) candidate = new Date(today0.getFullYear() + 1, month - 1, day); // 60日以上過去なら翌年とみなす
-  return candidate;
-}
-// text 内の M/D・M月D日 をすべて拾う(範囲外の数値は除外)。位置情報付きでキーワード近接判定に使う
-function scanDates(text) {
-  const out = [];
-  let m;
-  const reKanji = /(\d{1,2})月(\d{1,2})日/g;
-  while ((m = reKanji.exec(text))) out.push({ month: +m[1], day: +m[2], start: m.index, end: m.index + m[0].length });
-  // "2026/08/14" のような YYYY/MM/DD の途中(MM/DD部分)を誤って拾わないよう前後を守る
-  const reSlash = /(?<!\d)(?<!\d\/)(\d{1,2})\/(\d{1,2})(?!\d)(?!\/\d)/g;
-  while ((m = reSlash.exec(text))) out.push({ month: +m[1], day: +m[2], start: m.index, end: m.index + m[0].length });
-  return out.filter((d) => d.month >= 1 && d.month <= 12 && d.day >= 1 && d.day <= 31)
-            .sort((a, b) => a.start - b.start);
-}
-// タイトル中の単独 M/D(曜日つき可)。「M/D-M/D」は最初の日付だけ拾う
-function scanBareSlashDates(text) {
-  const re = /(?<!\d)(?<!\d\/)(\d{1,2})\/(\d{1,2})(?:\([月火水木金土日]\))?(?!\d)(?!\/\d)/g;
-  const out = [];
-  let m;
-  while ((m = re.exec(text))) {
-    const month = +m[1], day = +m[2];
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) out.push({ month, day });
-  }
-  return out;
-}
-function scanRulesForDue(text, allowBare) {
-  if (!text) return null;
-  if (/本日中|今日中|【本日中】/.test(text)) return startOfToday();
-  // 期限系キーワードに最も近い日付を採用する(単に左から最初に見つかった日付ではない)
-  const keywords = [];
-  const kwRe = /期限|締切|〆切|まで|必着/g;
-  let km;
-  while ((km = kwRe.exec(text))) keywords.push({ start: km.index, end: km.index + km[0].length });
-  if (keywords.length) {
-    let best = null, bestDist = Infinity;
-    for (const d of scanDates(text)) {
-      for (const k of keywords) {
-        const dist = d.start >= k.end ? d.start - k.end : (k.start >= d.end ? k.start - d.end : 0);
-        if (dist <= 20 && dist < bestDist) { bestDist = dist; best = d; }
-      }
-    }
-    if (best) return inferYear(best.month, best.day);
-  }
-  const monthMatch = /(?:※\s*)?(\d{1,2})月中/.exec(text);
-  if (monthMatch) {
-    const month = +monthMatch[1];
-    if (month >= 1 && month <= 12) {
-      const y = inferYear(month, 1).getFullYear();
-      return new Date(y, month, 0); // 月末日(翌月の0日目)
-    }
-  }
-  if (allowBare) {
-    const bare = scanBareSlashDates(text);
-    if (bare.length) {
-      const dates = bare.map((d) => inferYear(d.month, d.day));
-      const today0 = startOfToday();
-      const future = dates.filter((dt) => dt >= today0);
-      const pick = future.length ? future : dates;
-      return pick.reduce((min, dt) => (dt < min ? dt : min));
-    }
-  }
-  return null;
-}
-// タイトル+本文から締切日を推定する。見つからなければ null
-function dueOf(issue) {
-  const title = issue.title || "";
-  const body = (issue.body || "").slice(0, 2000);
-  return scanRulesForDue(title, true) || scanRulesForDue(body, false);
-}
-function daysUntilDue(due) {
-  return Math.round((due - startOfToday()) / 86400000);
-}
-function sectionKeyOfDue(due) {
-  const diff = daysUntilDue(due);
-  if (diff <= 0) return "now";
-  if (diff <= 7) return "week";
-  if (diff <= 31) return "month";
-  return "later";
-}
-
-// ---------- セクション(期限別)分け ----------
-const SECTION_DEFS = [
-  { key: "now",     label: "🔥 いま" },
-  { key: "week",    label: "📅 今週" },
-  { key: "consult", label: "🤔 要相談" },
-  { key: "month",   label: "🗓 今月" },
-  { key: "none",    label: "📥 期限なし" },
-  { key: "later",   label: "🌤 先" },
-];
-const SECTION_DEFAULT_OPEN = { now: true, week: true, consult: false, month: false, none: false, later: false };
-const SECTION_LS_KEY = "ai-todo-sections-v1";
-function loadSectionState() {
-  try { return { ...SECTION_DEFAULT_OPEN, ...JSON.parse(localStorage.getItem(SECTION_LS_KEY) || "{}") }; }
-  catch { return { ...SECTION_DEFAULT_OPEN }; }
-}
-function saveSectionState(state) { localStorage.setItem(SECTION_LS_KEY, JSON.stringify(state)); }
-let sectionState = loadSectionState();
-
-// [要相談] は手順ではなく論点が書かれたIssue。本文が散文なので期限抽出が誤爆する
-// (「今日中に送る」「前後3日まで」等を締切として拾う)。そもそも締切を持たない性質なので、
-// 期限判定の対象から外して専用セクションへ入れる
-function isConsult(issue) { return /^\s*\[要相談\]/.test(issue.title || ""); }
-
-// 期限なし・要相談は作成日が古い順、期限ありは期限の早い順
-function groupBySection(list) {
-  const groups = {}; const due = new Map();
-  for (const def of SECTION_DEFS) groups[def.key] = [];
-  for (const issue of list) {
-    if (isConsult(issue)) { groups.consult.push(issue); continue; }
-    const d = dueOf(issue);
-    due.set(issue.number, d);
-    groups[d ? sectionKeyOfDue(d) : "none"].push(issue);
-  }
-  groups.consult.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  groups.none.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  for (const key of ["now", "week", "month", "later"]) {
-    groups[key].sort((a, b) => due.get(a.number) - due.get(b.number));
-  }
-  return groups;
-}
-
+// ---------- 表示(実行順の単一リスト) ----------
 function render() {
   listEl.textContent = "";
-  const groups = groupBySection(issues);
-  const nextGroup = SECTION_DEFS.map((d) => groups[d.key]).find((g) => g.length);
-  const nextIssue = nextGroup ? nextGroup[0] : null;
-  if (!autoExpandDone && nextIssue) { expanded.add(nextIssue.number); autoExpandDone = true; }
-  for (const def of SECTION_DEFS) {
-    const group = groups[def.key];
-    if (group.length) listEl.append(renderSection(def, group, nextIssue));
+
+  const byNum = new Map(issues.map((i) => [i.number, i]));
+  const ordered = [];
+  for (const it of orderItems) {
+    const issue = byNum.get(it.num);
+    if (!issue) continue;
+    ordered.push({ issue, lane: it.lane, reason: it.reason });
+    byNum.delete(it.num);
   }
+  const unsorted = [...byNum.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  // 初回起動(展開状態の保存が何も無い)なら、最上位1件だけ自動で開く。以後はユーザー操作を尊重する
+  if (!autoOpenApplied) {
+    if (hadNoSavedExpanded && ordered.length) { expanded.add(ordered[0].issue.number); saveExpanded(expanded); }
+    autoOpenApplied = true;
+  }
+
+  ordered.forEach((entry, idx) => listEl.append(renderItem(entry.issue, idx + 1, entry.lane, entry.reason)));
+  if (unsorted.length) listEl.append(renderUnsortedSection(unsorted));
+
   emptyEl.hidden = issues.length > 0;
   countEl.textContent = issues.length ? "残り " + issues.length + " 件" : "";
   renderHold();
 }
 
-// 期限セクション1つ分(見出し+開閉+件数バッジ)を組み立てる
-function renderSection(def, group, nextIssue) {
+// order.json に無い issue(実行順が未整列)をまとめる、畳んだセクション
+function renderUnsortedSection(list) {
   const wrap = document.createElement("div");
   wrap.className = "section";
-  const isOpen = sectionState[def.key];
   const head = document.createElement("button");
   head.type = "button";
-  head.className = "sechead" + (isOpen ? " open" : "");
+  head.className = "sechead" + (unsortedOpen ? " open" : "");
   const arrow = document.createElement("span"); arrow.className = "secarrow"; arrow.textContent = "▶";
-  const label = document.createElement("span"); label.textContent = def.label;
-  const badge = document.createElement("span"); badge.className = "secbadge"; badge.textContent = group.length + " 件";
+  const label = document.createElement("span"); label.textContent = "📥 新着・未整列";
+  const badge = document.createElement("span"); badge.className = "secbadge"; badge.textContent = list.length + " 件";
   head.append(arrow, label, badge);
   const ul = document.createElement("ul");
   ul.className = "itemlist";
-  ul.hidden = !isOpen;
+  ul.hidden = !unsortedOpen;
   head.addEventListener("click", () => {
-    sectionState[def.key] = !sectionState[def.key];
-    saveSectionState(sectionState);
+    unsortedOpen = !unsortedOpen;
+    localStorage.setItem(UNSORTED_LS_KEY, unsortedOpen ? "1" : "0");
     render();
   });
-  group.forEach((issue) => ul.append(renderItem(issue, !!nextIssue && issue.number === nextIssue.number)));
+  list.forEach((issue) => ul.append(renderItem(issue, null, null, null)));
   wrap.append(head, ul);
   return wrap;
 }
@@ -780,55 +696,86 @@ function renderHold() {
   }
 }
 
-function renderItem(issue, isNext) {
+// rank: 実行順(1始まり)。order.json に無い issue は null。lane/reason も order.json 由来(無ければ null)
+function renderItem(issue, rank, lane, reason) {
   const { blocks, source, session } = parseBody(issue.body);
   const steps = blocks.filter(b => b.type === "step");
   const doneSteps = steps.filter(s => s.checked).length;
+  const isTop = rank === 1;
 
   const li = document.createElement("li");
-  li.className = "item" + (isNext ? " next" : "") + (expanded.has(issue.number) ? " open" : "");
+  li.className = "item" + (isTop ? " top" : "") + (expanded.has(issue.number) ? " open" : "");
 
-  // --- ヘッダ行 ---
+  // --- ヘッダ行: 順位 / 完了チェック / タイトル+レーン / Issue番号 / 保留 / 開閉 ---
   const head = document.createElement("div");
   head.className = "head";
+
+  const rankEl = document.createElement("span");
+  rankEl.className = "rank";
+  rankEl.textContent = rank ? String(rank) : "・";
+
   const check = document.createElement("button");
   check.className = "check" + (steps.length && doneSteps === steps.length ? " pulse" : "");
   check.title = "タスク全体を完了にする";
   check.addEventListener("click", (e) => { e.stopPropagation(); completeIssue(li, check, issue); });
+
   const hbody = document.createElement("div");
   hbody.className = "hbody";
   const title = document.createElement("div");
   title.className = "title";
   title.textContent = issue.title;
+  hbody.append(title);
+  if (isTop && reason) {
+    const rz = document.createElement("div");
+    rz.className = "reason";
+    rz.textContent = "この順位の理由: " + reason;
+    hbody.append(rz);
+  }
   const meta = document.createElement("div");
   meta.className = "meta";
-  if (isNext) { const c = document.createElement("span"); c.className = "chip nextchip"; c.textContent = "▶ 次はこれ"; meta.append(c); }
-  if (steps.length) { const c = document.createElement("span"); c.className = "chip"; c.textContent = doneSteps + "/" + steps.length + " 手順"; meta.append(c); }
-  const time = document.createElement("span");
-  time.className = "pill " + pillClass(daysSince(issue.created_at));
-  time.textContent = relTime(issue.created_at);
-  meta.append(time);
-  if (source) { const s = document.createElement("span"); s.textContent = "📌 " + source; meta.append(s); }
-  if (session && /^https?:\/\//.test(session)) {
-    const a = document.createElement("a"); a.href = session; a.target = "_blank"; a.rel = "noopener"; a.textContent = "元セッション ↗"; meta.append(a);
+  if (lane) {
+    const laneEl = document.createElement("span");
+    laneEl.className = "lane lane-" + laneKey(lane);
+    laneEl.textContent = lane;
+    if (!isTop && reason) laneEl.title = reason;
+    meta.append(laneEl);
   }
-  const link = document.createElement("a");
-  link.href = issue.html_url; link.target = "_blank"; link.rel = "noopener"; link.textContent = "#" + issue.number;
-  meta.append(link);
-  hbody.append(title, meta);
+  if (meta.childElementCount) hbody.append(meta);
+
+  const numEl = document.createElement("a");
+  numEl.className = "num";
+  numEl.href = issue.html_url; numEl.target = "_blank"; numEl.rel = "noopener";
+  numEl.textContent = "#" + issue.number;
+  numEl.addEventListener("click", (e) => e.stopPropagation());
+
   const holdBtn = document.createElement("button");
   holdBtn.className = "holdbtn"; holdBtn.textContent = "⏸"; holdBtn.title = "保留にする(消さずに脇へ置く)";
   holdBtn.addEventListener("click", (e) => { e.stopPropagation(); holdIssue(issue); });
+
   const caret = document.createElement("span"); caret.className = "caret"; caret.textContent = "▶";
-  head.append(check, hbody, holdBtn, caret);
+
+  head.append(rankEl, check, hbody, numEl, holdBtn, caret);
   head.addEventListener("click", () => {
     if (expanded.has(issue.number)) expanded.delete(issue.number); else expanded.add(issue.number);
+    saveExpanded(expanded);
     li.classList.toggle("open");
   });
 
   // --- 詳細(レシピ) ---
   const detail = document.createElement("div");
   detail.className = "detail";
+  if (source || session) {
+    const meta2 = document.createElement("div");
+    meta2.className = "p mutedline";
+    const parts = [];
+    if (source) parts.push("📌 " + source);
+    detail.append(meta2);
+    meta2.textContent = parts.join("  ");
+    if (session && /^https?:\/\//.test(session)) {
+      const a = document.createElement("a"); a.href = session; a.target = "_blank"; a.rel = "noopener"; a.textContent = (parts.length ? "  " : "") + "元セッション ↗";
+      meta2.append(a);
+    }
+  }
   const actions = document.createElement("div");
   actions.className = "taskactions";
   const copyAllBtn = document.createElement("button");
@@ -975,7 +922,8 @@ async function refresh() {
   refreshing = true;
   setStatus("読み込み中…");
   try {
-    const all = await fetchTodos();
+    const [all, order] = await Promise.all([fetchTodos(), fetchOrder()]);
+    orderItems = order;
     issues = all.filter((i) => !isHeld(i));
     held = all.filter(isHeld);
     render();
