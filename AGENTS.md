@@ -4,7 +4,7 @@
 
 作業中に「ユーザー(Kota)本人にしかできないアクション」が発生したら、発生したその場で
 GitHub リポジトリ `KotaHiguchiKH/kpi-compass-build-week` に、ラベル `ai-todo` 付きの Issue として記録すること。
-ユーザーは AI Todo アプリ(https://kotahiguchikh.github.io/kpi-compass-build-week/)でこの一覧を消化する。
+ユーザーはGitHubのIssue一覧(ラベル ai-todo・番号の小さい順)でこの一覧を消化する。並べ替えない。自作AI Todoアプリは2026-09-17に停止し、todo/ は旧URLからの転送ページだけを置く。
 
 対象の例: 承認・意思決定、アカウント作成や API キー発行、支払い、実機や本番環境での動作確認、
 外部サービスでの手動設定、他者への連絡。エージェント自身で完了できる作業(コード変更など)は対象外。
