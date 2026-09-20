@@ -3,6 +3,21 @@
 KPI Compass(月次売上CSV → 根拠つきブリーフ)のハッカソン成果物。`npm test` / `npm start` で動作。
 `todo/` 配下は独立した「AI Todo」アプリ(下記参照)。
 
+## クラウドセッション(スマホ/ブラウザ)から起動された場合
+
+このリポジトリは Claude アプリの Code タブ(クラウドセッション)からも作業される。
+そのとき環境はローカルと次の点で異なる(2026-09-20 実測)。詳細と運用テンプレは
+`docs/mobile-remote-playbook.md`。
+
+- **`~/.claude/CLAUDE.md` は存在しない。** 下の ai-todo 節が「正本」と呼ぶファイルは
+  クラウドセッションからは読めない。齟齬が出ても自動検知できないので、
+  このファイル内の記述だけを根拠に動く
+- `~/.claude/settings.json` も無い。個人の permissions / env は効かない
+- computer-use / Claude in Chrome のツールは無い。Mac のアプリ操作・ブラウザ実操作は不可。
+  必要になったら ai-todo Issue に落とす
+- Gmail / Google Calendar / Google Drive / GitHub の各コネクタは有効
+- コンテナは無活動で回収される。**残すものは必ずコミット＋プッシュまで実行する**
+
 ## ai-todo: ユーザーのアクションアイテムを自動記録する
 
 作業中に「ユーザー(Kota)本人にしかできないアクション」が発生したら、発生したその場で
