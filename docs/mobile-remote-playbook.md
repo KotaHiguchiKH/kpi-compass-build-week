@@ -105,11 +105,24 @@ PC が落ちているときだけクラウドセッション。「PC を起こ�
 2. 個人ナレッジの `kota-md` は GitHub に無い(実測: `git remote -v` が空・762コミットすべてローカル)。
    つまり **自己分析・過去の決定・就活の文脈はクラウドセッションから参照できない**
 
-   **訂正(2026-09-20、ローカルで実測)**: 本ガイドの初版は到達可能なリポジトリを
-   「`kpi-compass-build-week` と `yosoku` の2つ」と書いたが、**`yosoku` というリポジトリは存在しない。**
-   `gh api user/repos`(`repo` フルスコープ)で見えるのは
-   `KotaHiguchiKH/kpi-compass-build-week` と `higuchi-kota/kaien-privacy-policy` の2つで、
-   どちらも public。**private リポジトリは1つも無い。**
+   **リポジトリの見え方は実行環境ごとに違う(2026-09-20、両側で実測)**:
+   GitHub アカウントが2つあり、**ローカルの `gh` とクラウドセッションでは見えるリポジトリが違う**。
+
+   | 実行環境 | 認証アカウント | 見えるリポジトリ |
+   |---|---|---|
+   | ローカル PC の `gh` | `higuchi-kota`(id 277040382) | `KotaHiguchiKH/kpi-compass-build-week`(public)、`higuchi-kota/kaien-privacy-policy`(public) |
+   | クラウドセッション | `KotaHiguchiKH`(id 190890880) | `KotaHiguchiKH/kpi-compass-build-week`(public)、**`KotaHiguchiKH/yosoku`(private・push可)** |
+
+   本ガイドの一時的な版に「`yosoku` は存在しない」「private リポジトリは1つも無い」と
+   書いたが、**どちらも誤り**。GitHub API(`owner:KotaHiguchiKH`)で
+   `yosoku` は `private: true` / 権限 admin・push として実在が確認できた
+   (2026-09-20、クラウドセッションから照会)。ローカルの `gh` に見えなかったのは、
+   `yosoku` の所有者が `higuchi-kota` ではなく `KotaHiguchiKH` だからで、
+   リポジトリが無いからではない。
+
+   **運用上の含意**: スマホから `add_repo` で引き込める範囲は、PC で
+   `gh repo list` を叩いた結果とは一致しない。どちらか一方だけを見て
+   「無い」と判断しないこと。
 3. この結果、スマホから投げられるのは「このリポジトリの文脈で完結する作業」に限られる。
    例えば「自己分析(#233)を踏まえてESの下書きを作る」は、
    ローカルなら通るがクラウドセッションでは材料が無い
@@ -125,7 +138,16 @@ kota-md にリモートを置かないのは既決事項でもある(`kota_archi
 ### 他リポジトリを引き込む方法(判断が出るまでの暫定)
 
 セッション中に `add_repo` でリポジトリを追加できる。GitHub 上にあるものに限る。
-ただし上記のとおり、現時点で引き込めるのは `higuchi-kota/kaien-privacy-policy` だけで、実用上の出番は無い。
+クラウドセッションから引き込めるのは `KotaHiguchiKH` 配下、すなわち
+`kpi-compass-build-week` と `yosoku`(private)。`higuchi-kota/kaien-privacy-policy` は
+別アカウント所有のため、このセッションのリポジトリ一覧には出てこなかった。
+
+なお **この訂正は Issue #276 の決着(案C)を覆さない。** 案C の根拠は
+(1) RC が既に稼働していること、(2) バックアップが既にあること、
+(3) `gh` トークンが `repo` フルスコープであることの3点で、
+private リポジトリの有無はいずれの支えにもなっていない。
+むしろアカウントが分かれている分、「private に置けばクラウドから読める」も
+自明ではない(所有アカウントが違えば読めない)。
 
 ## 4. スマホからの投げ方(実用テンプレ)
 

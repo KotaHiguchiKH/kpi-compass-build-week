@@ -7,6 +7,17 @@ https://claude.ai/code/session_01BACw9VgziGecBeDcd8U5PG
 このファイルは、クラウドセッション側からは読めない情報
 (`~/.claude/CLAUDE.md`、`kota-md`)を使って判断を完成させるための引き継ぎ。
 
+> **状態: 消化済み(2026-09-20 16:42 JST・コミット `a5eec85`)。再実行しないこと。**
+> ローカル PC セッションが第6節の全項目を実施し、結果は
+> `docs/mobile-remote-playbook.md` の 5〜7 節と Issue #276 のコメントに反映済み。
+> Issue #276 は案C(置き場を動かさない)で **クローズ済み**。
+> 以下は当時の依頼内容の記録であり、未消化のタスクリストではない。
+>
+> 消化後に判明した訂正が1件ある。「到達可能なリポジトリ」は実行環境ごとに違う
+> (ローカルの `gh` は `higuchi-kota`、クラウドセッションは `KotaHiguchiKH` で認証されており、
+> `KotaHiguchiKH/yosoku` は private として実在する)。
+> 詳細は `docs/mobile-remote-playbook.md` の3節。
+
 ## 1. 状況
 
 オーナー(Kota)のボトルネックは「AI とのつながりが失われた時に作業が止まること」。
