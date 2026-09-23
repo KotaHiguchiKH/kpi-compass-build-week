@@ -19,6 +19,13 @@ KPI Compass(月次売上CSV → 根拠つきブリーフ)のハッカソン成�
   必要になったら ai-todo Issue に落とす
 - Gmail / Google Calendar / Google Drive / GitHub の各コネクタは有効
 - コンテナは無活動で回収される。**残すものは必ずコミット＋プッシュまで実行する**
+- **このリポジトリ以外に残したいもの(決定・事実・ES等の成果物・オーナーの予定)は、Google Drive コネクタで
+  「Claude受信箱」フォルダ(ID `1Eg-O7aLXSkUb6jd6xAJ3EWVnaleTz1WO`)へ Google ドキュメントとして置く。**
+  1件=1用件、件名 `YYYYMMDD_種別_要約`、本文1行目 `種別: 決定|事実|成果物|行動|予定`、2行目 `書いた場所: クラウドセッション <URL>`。
+  `create_file` に `parentId` と `textContent`(`contentMimeType: text/plain`)を渡せば Google ドキュメントになる。
+  PC 側の定期タスク(1日3回)が kota-md・job-search・ai-todo へ取り込む。予定はカレンダーへ直接登録してよい
+  (その場合も受信箱に `種別: 予定` で経緯を残す)。kota-md・job-search はこの環境から読めないので、
+  オーナーの自己分析や過去の決定が要る作業(ES など)は下書きに留め、その旨を本文に書く
 
 ## ai-todo: ユーザーのアクションアイテムを自動記録する
 
